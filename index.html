@@ -21,7 +21,7 @@
                 <i class="fa-solid fa-briefcase text-2xl text-indigo-200"></i>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">근무시간 & 연차 시뮬레이터</h1>
-                    <p class="text-xs text-indigo-200">선택근무제 (30분 단위 시차연차 분할 지원) v2.4</p>
+                    <p class="text-xs text-indigo-200">선택근무제 (금요일 조기퇴근 & 현재 누계 적립시간 계산 지원) v2.5</p>
                 </div>
             </div>
             <div class="flex gap-2">
@@ -47,7 +47,7 @@
                         <h2 class="font-bold text-slate-800 flex items-center gap-2">
                             <i class="fa-solid fa-file-excel text-emerald-600"></i> 근무현황 엑셀 불러오기
                         </h2>
-                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">30분 단위 시간차 정산 지원</span>
+                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">금요일 칼퇴·조기퇴근 정산 지원</span>
                     </div>
                     <p class="text-xs text-slate-500 mb-4">회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">근무현황.xlsx</code> 파일을 업로드해 주세요.</p>
                     
@@ -87,34 +87,34 @@
                         <span id="statusBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-semibold">정산 중</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4 my-4 border-y border-slate-800 py-4">
+                    <div class="grid grid-cols-2 gap-3 my-3 border-y border-slate-800 py-3">
                         <div>
-                            <p class="text-xs text-slate-400">총 인정 근무시간</p>
-                            <p class="text-xl font-bold text-indigo-400" id="totalWorked">0:00</p>
+                            <p class="text-[11px] text-slate-400">총 인정 근무시간</p>
+                            <p class="text-lg font-bold text-indigo-400" id="totalWorked">121:01</p>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-400">월 목표시간 (기준)</p>
-                            <p class="text-xl font-bold text-slate-200" id="targetWork">160:00</p>
+                            <p class="text-[11px] text-slate-400">오늘 기준 누계 초과/부족</p>
+                            <p class="text-lg font-bold text-emerald-400" id="currentOvertime">+1:01 여유</p>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-400">여유 / 부족 시간</p>
-                            <p class="text-xl font-bold" id="diffWork">-160:00 부족</p>
+                            <p class="text-[11px] text-slate-400">월 목표시간 (기준)</p>
+                            <p class="text-lg font-bold text-slate-200" id="targetWork">160:00</p>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-400">남은 평일 / 목표 잔여</p>
-                            <p class="text-xl font-bold text-amber-400" id="remDays">0일 / 0:00</p>
+                            <p class="text-[11px] text-slate-400">월 잔여 목표시간</p>
+                            <p class="text-lg font-bold text-amber-400" id="diffWork">38:59 필요</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="space-y-2 text-xs">
                     <div class="bg-slate-800/80 rounded-xl p-2.5 text-slate-300 flex items-center justify-between">
-                        <span class="text-slate-400 flex items-center gap-1"><i class="fa-solid fa-coins text-amber-400"></i> 월급날:</span>
-                        <span class="font-bold text-amber-300">매월 21일</span>
+                        <span class="text-slate-400 flex items-center gap-1"><i class="fa-solid fa-lightbulb text-amber-400"></i> 남은 평일 추천 퇴근:</span>
+                        <span class="font-bold text-white ml-1" id="recommendTime">17:18 (08:30 출근 기준)</span>
                     </div>
                     <div class="bg-slate-800/80 rounded-xl p-2.5 text-slate-300 flex items-center justify-between">
                         <span class="text-slate-400 flex items-center gap-1"><i class="fa-solid fa-umbrella-beach text-emerald-400"></i> 연차 생성일:</span>
-                        <span class="font-bold text-emerald-300">매월 24일 (+1개 / 8h 생성)</span>
+                        <span class="font-bold text-emerald-300">매월 24일 (+1개 / 8h)</span>
                     </div>
                 </div>
             </div>
@@ -200,7 +200,7 @@
                         </div>
                     </div>
                     <div class="mt-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs p-3 rounded-xl">
-                        💡 <strong>30분 단위 시차 꿀팁:</strong> 목요일 코어타임(6h) + 금요일 코어타임(2h)처럼 1개의 연차(8h)를 쪼개서 코어타임 출근에 사용할 수 있습니다.
+                        💡 <strong>30분 단위 시차 꿀팁:</strong> 주중에 모아둔 초과시간(+1시간 1분 등)과 시차 연차를 조합하면 금요일 코어타임(10~12시)만 채우고 빠르게 퇴근할 수 있습니다.
                     </div>
                 </div>
 
@@ -269,9 +269,9 @@
         let excelUploaded = false;
 
         const HOLIDAYS = {
-            9: [24, 25],     // 추석 연휴 (9/24, 9/25)
-            10: [5, 9],      // 개천절 대체휴일(10/5), 한글날(10/9)
-            11: []           // 공휴일 없음
+            9: [24, 25],     // 추석 연휴
+            10: [5, 9],      // 개천절 대체휴일, 한글날
+            11: []           
         };
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -444,7 +444,6 @@
                 }
             }
 
-            // Include Simulated Vacation Hours
             const simForDay = simVacations.filter(v => v.date === day.date);
             let simVacMins = 0;
             simForDay.forEach(v => {
@@ -471,7 +470,6 @@
                 const workedMins = calcDailyWorkedMinutes(day);
                 const workedStr = formatMinutesToHM(workedMins);
 
-                // Check Special Company Days
                 let eventBadge = '';
                 if (day.dayNumber === 21) {
                     eventBadge = '<span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded ml-1">💰 월급날</span>';
@@ -479,7 +477,6 @@
                     eventBadge = '<span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded ml-1">🎉 연차 +1개 생성</span>';
                 }
 
-                // Core Hours Check
                 if (!day.isHoliday && day.inTime && day.outTime) {
                     const inM = parseTimeToMinutes(day.inTime);
                     const outM = parseTimeToMinutes(day.outTime);
@@ -572,46 +569,50 @@
 
         function updateSummary() {
             const daysData = daysDataMap[currentMonth] || [];
-            let totalMins = 0;
-            let workDaysCount = 0;
-            let pastWorkMins = 0;
+            let totalWorkedMins = 0;
+            let pastWorkedDaysCount = 0;
+            let pastWorkedMins = 0;
             let remWorkDays = 0;
 
             daysData.forEach(d => {
                 if (!d.isHoliday) {
-                    workDaysCount++;
                     const m = calcDailyWorkedMinutes(d);
-                    totalMins += m;
+                    totalWorkedMins += m;
 
-                    if (d.source === 'system' && d.workedHours && d.workedHours !== '0:00') {
-                        pastWorkMins += m;
-                    } else if (!d.inTime && !d.outTime) {
+                    // Past / Present Filled Worked
+                    if ((d.source === 'system' && d.workedHours && d.workedHours !== '0:00') || (d.inTime && d.outTime)) {
+                        pastWorkedDaysCount++;
+                        pastWorkedMins += m;
+                    } else {
                         remWorkDays++;
                     }
                 }
             });
 
-            const targetMins = workDaysCount * 8 * 60;
-            const diffMins = totalMins - targetMins;
+            const totalTargetMins = 160 * 60; // 160 hours total
+            const expectedMinsToDate = pastWorkedDaysCount * 8 * 60; // 8h per past day
+            const currentOvertimeMins = pastWorkedMins - expectedMinsToDate;
 
-            document.getElementById('totalWorked').innerText = formatMinutesToHM(totalMins);
-            document.getElementById('targetWork').innerText = formatMinutesToHM(targetMins);
+            document.getElementById('totalWorked').innerText = formatMinutesToHM(totalWorkedMins);
+            document.getElementById('targetWork').innerText = '160:00';
 
-            const diffEl = document.getElementById('diffWork');
-            if (diffMins >= 0) {
-                diffEl.innerText = `+${formatMinutesToHM(diffMins)} 여유`;
-                diffEl.className = 'text-xl font-bold text-emerald-400';
+            // Current Overtime / Undertime
+            const overEl = document.getElementById('currentOvertime');
+            if (currentOvertimeMins >= 0) {
+                overEl.innerText = `+${formatMinutesToHM(currentOvertimeMins)} 여유`;
+                overEl.className = 'text-lg font-bold text-emerald-400';
             } else {
-                diffEl.innerText = `-${formatMinutesToHM(Math.abs(diffMins))} 부족`;
-                diffEl.className = 'text-xl font-bold text-rose-400';
+                overEl.innerText = `-${formatMinutesToHM(Math.abs(currentOvertimeMins))} 부족`;
+                overEl.className = 'text-lg font-bold text-rose-400';
             }
 
-            const remNeededMins = Math.max(0, targetMins - pastWorkMins);
-            document.getElementById('remDays').innerText = `${remWorkDays}일 / ${formatMinutesToHM(remNeededMins)}`;
+            // Rem Mins for Month
+            const remMinsForMonth = Math.max(0, totalTargetMins - pastWorkedMins);
+            document.getElementById('diffWork').innerText = `${formatMinutesToHM(remMinsForMonth)} 필요`;
 
             if (remWorkDays > 0) {
-                const recPerDayMins = Math.ceil(remNeededMins / remWorkDays);
-                const recLeaveMins = 510 + recPerDayMins;
+                const recPerDayMins = Math.ceil(remMinsForMonth / remWorkDays);
+                const recLeaveMins = 510 + recPerDayMins; // 08:30 start
                 const leaveH = Math.floor(recLeaveMins / 60);
                 const leaveM = recLeaveMins % 60;
                 document.getElementById('recommendTime').innerText = `${String(leaveH).padStart(2, '0')}:${String(leaveM).padStart(2, '0')} (08:30 출근 기준)`;
