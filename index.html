@@ -21,7 +21,7 @@
                 <i class="fa-solid fa-briefcase text-2xl text-indigo-200"></i>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">근무시간 & 연차 시뮬레이터</h1>
-                    <p class="text-xs text-indigo-200">선택근무제 (실시간 오늘 날짜 기준 실적 자동 전환) v2.8</p>
+                    <p class="text-xs text-indigo-200">선택근무제 (오늘 기준 누계 초과시간 버그 수정) v2.9</p>
                 </div>
             </div>
             <div class="flex gap-2">
@@ -47,7 +47,7 @@
                         <h2 class="font-bold text-slate-800 flex items-center gap-2">
                             <i class="fa-solid fa-file-excel text-emerald-600"></i> 근무현황 엑셀 불러오기
                         </h2>
-                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">지나간 날짜 수기 입력 실적 자동 인정</span>
+                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">실시간 초과 적립시간계산 지원</span>
                     </div>
                     <p class="text-xs text-slate-500 mb-4">회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">근무현황.xlsx</code> 파일을 업로드하시거나 아래에서 수기로 입력하세요.</p>
                     
@@ -260,7 +260,6 @@
     </main>
 
     <script>
-        // Dynamic Today Date Helper (YYYY-MM-DD)
         function getTodayString() {
             const now = new Date();
             const y = now.getFullYear();
@@ -518,7 +517,6 @@
                     specialBadge = `<span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-medium text-[11px]">${day.note}</span>`;
                 }
 
-                // DYNAMIC TODAY COMPARISON LOGIC
                 const isPastOrToday = day.date <= todayStr;
                 let sourceBadge = '<span class="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded text-[10px]">계획</span>';
                 
@@ -621,8 +619,8 @@
             });
 
             const totalTargetMins = totalWorkDaysCount * 8 * 60; 
-            const expectedMinsToDate = pastWorkedDaysCount * 8 * 60; 
-            const currentOvertimeMins = pastWorkedMins - expectedMinsToDate;
+            const expectedMinsToDate = pastWorkedDaysCount * 8 * 60; // 8 hours per worked past day
+            const currentOvertimeMins = pastWorkedMins - expectedMinsToDate; // EXACT OVERTIME CALCULATION
 
             document.getElementById('totalWorked').innerText = formatMinutesToHM(totalWorkedMins);
             document.getElementById('targetWork').innerText = formatMinutesToHM(totalTargetMins);
