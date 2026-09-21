@@ -21,7 +21,7 @@
                 <i class="fa-solid fa-briefcase text-2xl text-indigo-200"></i>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">근무시간 & 연차 시뮬레이터</h1>
-                    <p class="text-xs text-indigo-200">선택근무제 (11/23 인턴종료일 완벽 반영) v2.6</p>
+                    <p class="text-xs text-indigo-200">선택근무제 (실시간 오늘 날짜 기준 실적 자동 전환) v2.8</p>
                 </div>
             </div>
             <div class="flex gap-2">
@@ -47,9 +47,9 @@
                         <h2 class="font-bold text-slate-800 flex items-center gap-2">
                             <i class="fa-solid fa-file-excel text-emerald-600"></i> 근무현황 엑셀 불러오기
                         </h2>
-                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">11/23 인턴 만료일 자동 계산</span>
+                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">지나간 날짜 수기 입력 실적 자동 인정</span>
                     </div>
-                    <p class="text-xs text-slate-500 mb-4">회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">근무현황.xlsx</code> 파일을 업로드해 주세요.</p>
+                    <p class="text-xs text-slate-500 mb-4">회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">근무현황.xlsx</code> 파일을 업로드하시거나 아래에서 수기로 입력하세요.</p>
                     
                     <div id="dropZone" onclick="document.getElementById('fileInput').click()" 
                          class="border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/30 rounded-xl p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2">
@@ -260,6 +260,15 @@
     </main>
 
     <script>
+        // Dynamic Today Date Helper (YYYY-MM-DD)
+        function getTodayString() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         let currentMonth = 9;
         let daysDataMap = {};
         let simVacations = [];
@@ -295,13 +304,13 @@
                 const dateObj = new Date(year, month - 1, d);
                 const dayNum = dateObj.getDay();
                 const dayStr = ['일', '월', '화', '수', '목', '금', '토'][dayNum];
+                const fullDateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 
                 let isHoliday = (dayNum === 0 || dayNum === 6);
                 if (HOLIDAYS[month] && HOLIDAYS[month].includes(d)) {
                     isHoliday = true;
                 }
 
-                // November 23 Internship End Constraint
                 let isEndAfter = false;
                 if (month === 11 && d > 23) {
                     isHoliday = true;
@@ -309,7 +318,7 @@
                 }
 
                 list.push({
-                    date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+                    date: fullDateStr,
                     dayLabel: `${d}일 (${dayStr})`,
                     dayOfWeek: dayStr,
                     dayNumber: d,
@@ -463,6 +472,7 @@
         }
 
         function renderTable() {
+            const todayStr = getTodayString();
             const daysData = daysDataMap[currentMonth] || [];
             const tbody = document.getElementById('workTableBody');
             tbody.innerHTML = '';
@@ -508,6 +518,16 @@
                     specialBadge = `<span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-medium text-[11px]">${day.note}</span>`;
                 }
 
+                // DYNAMIC TODAY COMPARISON LOGIC
+                const isPastOrToday = day.date <= todayStr;
+                let sourceBadge = '<span class="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded text-[10px]">계획</span>';
+                
+                if (day.source === 'system') {
+                    sourceBadge = '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">✓ 시스템</span>';
+                } else if (isPastOrToday && (day.inTime || day.outTime)) {
+                    sourceBadge = '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">✓ 완료</span>';
+                }
+
                 tr.innerHTML = `
                     <td class="p-3.5 font-semibold">
                         ${day.dayLabel} 
@@ -529,9 +549,7 @@
                         ${workedStr}
                     </td>
                     <td class="p-3.5">
-                        ${day.source === 'system' 
-                            ? '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">✓ 시스템</span>' 
-                            : '<span class="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded text-[10px]">계획</span>'}
+                        ${sourceBadge}
                     </td>
                     <td class="p-3.5 text-slate-500">
                         ${day.isEndAfter 
@@ -559,7 +577,7 @@
 
         function updateRow(idx, field, value) {
             daysDataMap[currentMonth][idx][field] = value;
-            daysDataMap[currentMonth][idx].source = 'plan';
+            daysDataMap[currentMonth][idx].source = 'manual';
             saveToLocalStorage();
             renderTable();
             updateSummary();
@@ -577,6 +595,7 @@
         }
 
         function updateSummary() {
+            const todayStr = getTodayString();
             const daysData = daysDataMap[currentMonth] || [];
             let totalWorkedMins = 0;
             let pastWorkedDaysCount = 0;
@@ -590,7 +609,9 @@
                     const m = calcDailyWorkedMinutes(d);
                     totalWorkedMins += m;
 
-                    if ((d.source === 'system' && d.workedHours && d.workedHours !== '0:00') || (d.inTime && d.outTime)) {
+                    const isPastOrToday = d.date <= todayStr;
+
+                    if (d.source === 'system' || (isPastOrToday && (d.inTime || d.outTime))) {
                         pastWorkedDaysCount++;
                         pastWorkedMins += m;
                     } else {
@@ -599,7 +620,6 @@
                 }
             });
 
-            // Dynamic Target Hours based on exact work days
             const totalTargetMins = totalWorkDaysCount * 8 * 60; 
             const expectedMinsToDate = pastWorkedDaysCount * 8 * 60; 
             const currentOvertimeMins = pastWorkedMins - expectedMinsToDate;
