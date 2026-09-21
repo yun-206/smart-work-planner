@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 근무시간 & 연차 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (XLSX) for reading uploaded excel files -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-16">
+
+    <!-- Navigation Header -->
+    <header class="bg-indigo-600 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid font-bold fa-business-time text-2xl text-indigo-200"></i>
+                <h1 class="font-bold text-lg sm:text-xl tracking-tight">근무시간 & 연차 시뮬레이터</h1>
+                <span class="bg-indigo-500 text-indigo-100 text-xs px-2.5 py-0.5 rounded-full font-medium hidden sm:inline-block">v2.0 Beta</span>
+            </div>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="btnShareModal" class="bg-indigo-700 hover:bg-indigo-800 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-share-nodes"></i> <span class="hidden sm:inline">공유하기</span>
+                </button>
+                <button id="btnResetData" class="bg-rose-500 hover:bg-rose-600 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-rotate-left"></i> <span class="hidden sm:inline">초기화</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+
+        <!-- Import & Quick Status Card -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Excel Upload Dropzone -->
+            <div class="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                            근무현황 엑셀 불러오기
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                            회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">근무현황.xlsx</code> 파일을 드래그하여 올려주세요.
+                        </p>
+                    </div>
+                    <span class="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                        자동 정산 지원
+                    </span>
+                </div>
+
+                <div id="dropZone" class="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 transition-all rounded-xl p-6 text-center cursor-pointer group flex flex-col items-center justify-center min-h-[120px]">
+                    <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-400 group-hover:scale-110 transition-transform mb-2"></i>
+                    <p class="text-sm font-medium text-slate-700">클릭하거나 엑셀 파일(.xlsx)을 여기에 올려주세요</p>
+                    <p class="text-xs text-slate-400 mt-1">서버에 저장되지 않고 개인 브라우저에만 안전하게 처리됩니다.</p>
+                </div>
+
+                <div id="uploadStatus" class="mt-3 text-xs text-slate-500 flex items-center justify-between hidden">
+                    <span id="fileNameDisplay" class="font-medium text-slate-700 flex items-center gap-1.5"><i class="fa-solid fa-[#107c41] fa-file-excel"></i> sample.xlsx</span>
+                    <button id="btnClearExcel" class="text-rose-500 hover:underline">엑셀 연결 해제</button>
+                </div>
+            </div>
+
+            <!-- Total Monthly Target Summary Widget -->
+            <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-md flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-xs uppercase tracking-wider text-indigo-300 font-semibold">이번 달 근태 요약</span>
+                        <h3 class="text-2xl font-black mt-1" id="summaryMonthLabel">2026년 9월</h3>
+                    </div>
+                    <span id="badgeTargetStatus" class="px-2.5 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+                        순항 중
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 my-4 py-3 border-y border-indigo-800/60">
+                    <div>
+                        <p class="text-xs text-slate-400">총 인정 근무시간</p>
+                        <p class="text-xl font-bold text-white mt-0.5" id="totalRecognizedHours">112:22</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">목표 인정시간 (현재 기준)</p>
+                        <p class="text-xl font-bold text-indigo-200 mt-0.5" id="totalTargetHours">112:00</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">여유 / 부족 시간</p>
+                        <p class="text-lg font-bold text-emerald-400 mt-0.5" id="timeBalanceDisplay">+0:22 여유</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">남은 평일 / 목표 잔여시간</p>
+                        <p class="text-lg font-bold text-slate-200 mt-0.5" id="remainingDaysCount">3일 / 23:38</p>
+                    </div>
+                </div>
+
+                <div class="text-xs text-indigo-200/80 flex items-center gap-1.5">
+                    <i class="fa-solid fa-lightbulb text-amber-300"></i>
+                    <span id="recommendationTip">오늘 추천 퇴근시간: <strong>17:30</strong> (8시간 기준)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-slate-200 space-x-6 text-sm font-semibold">
+            <button id="tabBtnMain" class="pb-3 border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days"></i> 일별 근무 계획 & 추천 퇴근
+            </button>
+            <button id="tabBtnVacation" class="pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition">
+                <i class="fa-solid fa-umbrella-beach text-amber-500"></i> 연차 사용 미리 시뮬레이션 <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-normal">NEW</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: Main Daily Work Hours & Recommendations -->
+        <div id="tabContentMain" class="space-y-6">
+            <!-- Quick Input & Plan Toolbar -->
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex items-center space-x-3 flex-wrap gap-y-2">
+                    <span class="text-sm font-bold text-slate-700 flex items-center gap-1">
+                        <i class="fa-solid fa-sliders text-indigo-500"></i> 빠른 일괄 목표 설정:
+                    </span>
+                    <button class="btnQuickPlan text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition" data-hours="8">매일 8시간 (17:30 퇴근)</button>
+                    <button class="btnQuickPlan text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition" data-hours="8.5">매일 8.5시간 (18:00 퇴근)</button>
+                    <button class="btnQuickPlan text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition" data-hours="7.5">금요일 7시간 (16:30 퇴근)</button>
+                </div>
+                <div class="text-xs text-slate-500 flex items-center gap-2">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> [시스템] 엑셀 자동반영</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> [계획] 사용자 직접 설정</span>
+                </div>
+            </div>
+
+            <!-- Warnings/Alerts Container -->
+            <div id="warningsAlertContainer" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl space-y-1 text-sm text-amber-900 shadow-sm">
+                <!-- Dynamic Warnings -->
+            </div>
+
+            <!-- Daily Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 font-semibold text-xs uppercase tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">날짜 / 구분</th>
+                                <th class="py-3 px-4">출근 시각</th>
+                                <th class="py-3 px-4">퇴근 시각</th>
+                                <th class="py-3 px-4">연차 / 외출 / 출장</th>
+                                <th class="py-3 px-4">인정 근무시간</th>
+                                <th class="py-3 px-4 text-center">출처</th>
+                                <th class="py-3 px-4 text-right">상세 / 비고</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workLogTableBody" class="divide-y divide-slate-100">
+                            <!-- Dynamic Content Rendered via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Vacation / Leave Simulator -->
+        <div id="tabContentVacation" class="hidden space-y-6">
+            <!-- Vacation Summary & Balances -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400">올해 총 연차</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <input type="number" id="inputTotalAnnual" value="15" step="0.5" class="w-16 font-bold text-2xl text-slate-800 border-b border-slate-300 focus:border-indigo-500 outline-none text-center">
+                        <span class="text-slate-500 text-sm">일</span>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400">현재 확정 사용 연차</p>
+                    <p class="text-2xl font-bold text-slate-700 mt-1" id="displayUsedVacation">3.5 <span class="text-sm font-normal text-slate-500">일</span></p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-indigo-600">시뮬레이션 가상 연차</p>
+                    <p class="text-2xl font-bold text-indigo-600 mt-1" id="displaySimulatedVacation">+0.0 <span class="text-sm font-normal text-indigo-400">일</span></p>
+                </div>
+                <div class="bg-emerald-500 text-white p-5 rounded-2xl shadow-sm">
+                    <p class="text-xs font-semibold text-emerald-100">최종 남는 예상 잔여 연차</p>
+                    <p class="text-2xl font-black mt-1" id="displayFinalRemainingVacation">11.5 <span class="text-sm font-normal text-emerald-100">일</span></p>
+                </div>
+            </div>
+
+            <!-- Interactive Simulation Builder Card -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-calculator text-amber-500"></i>
+                            연차 사전 신청 시뮬레이터
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">원하는 연차 유형과 날짜를 선택하면 목표 인정근무시간 감면액과 남은 연차가 실시간 계산됩니다.</p>
+                    </div>
+                    <button id="btnApplyAllSimulations" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> 시뮬레이션을 달력에 모두 적용
+                    </button>
+                </div>
+
+                <!-- Simulation Form -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">대상 날짜</label>
+                        <select id="simDateSelect" class="w-full bg-white border border-slate-300 rounded-lg text-sm p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">연차 종류 선택</label>
+                        <select id="simTypeSelect" class="w-full bg-white border border-slate-300 rounded-lg text-sm p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="FULL">종일 연차 (8시간 인정 / 1일 차감)</option>
+                            <option value="AM_HALF">오전 반차 (4시간 인정 / 0.5일 차감)</option>
+                            <option value="PM_HALF">오후 반차 (4시간 인정 / 0.5일 차감)</option>
+                            <option value="HALF_HALF">반반차 (2시간 인정 / 0.25일 차감)</option>
+                            <option value="HOURLY">시간제 연차 (직접 시간 지정)</option>
+                        </select>
+                    </div>
+                    <div id="hourlyTimeContainer" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">시간 지정 (30분 단위)</label>
+                        <div class="flex items-center space-x-1">
+                            <input type="number" id="simHoursInput" value="1" min="0.5" max="8" step="0.5" class="w-full bg-white border border-slate-300 rounded-lg text-sm p-2 text-center">
+                            <span class="text-xs text-slate-500">시간</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button id="btnAddSimulation" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm py-2 px-4 rounded-lg transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> 시뮬레이션 목록 추가
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation List Table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 text-xs font-semibold uppercase">
+                            <tr>
+                                <th class="p-3">날짜</th>
+                                <th class="p-3">신청 연차 종류</th>
+                                <th class="p-3">근무시간 인정효과</th>
+                                <th class="p-3">연차 차감분</th>
+                                <th class="p-3 text-right">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="simulatedTableBody" class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 text-xs">
+                                    추가된 연차 시뮬레이션 항목이 없습니다. 상단에서 연차를 선택해보세요!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Edit Day Modal -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2" id="modalDateTitle">
+                    <i class="fa-solid fa-calendar-day"></i> 9월 15일 (화) 상세 수정
+                </h3>
+                <button id="btnCloseModal" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-4 text-sm">
+                <div id="modalSystemBadge" class="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs hidden">
+                    <i class="fa-solid fa-circle-info"></i> 시스템(엑셀)에서 불러온 기록입니다. 수정 시 사용자가 입력한 계획값으로 전환됩니다.
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">출근 시각</label>
+                        <input type="time" id="modalClockIn" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">퇴근 시각</label>
+                        <input type="time" id="modalClockOut" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-slate-700">연차 / 외출 / 출장 / 병가 추가</label>
+                        <span class="text-[11px] text-slate-400">30분 단위 권장</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <select id="modalOutingType" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+                                <option value="NONE">없음</option>
+                                <option value="OUTING">외출 (외출시간)</option>
+                                <option value="VACATION">시간제/반차 연차</option>
+                                <option value="BUSINESS">출장 (기본 인정시간)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <input type="number" id="modalOutingHours" step="0.5" placeholder="시간 (예: 2)" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <label class="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="modalIsHoliday" class="rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>휴일 / 주말 여부 지정</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 px-6 py-3 flex justify-end space-x-2 border-t border-slate-100">
+                <button id="btnModalCancel" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">취소</button>
+                <button id="btnModalSave" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">저장 및 계산</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-share-nodes"></i> 동기에게 도구 공유하기
+                </h3>
+                <button id="btnCloseShareModal" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-4 text-sm text-slate-600">
+                <p>이 웹 앱은 파일 하나로 구동되며, 모든 데이터는 각 개인의 웹 브라우저 내부에만 안전하게 저장됩니다.</p>
+                
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">공유 링크</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="shareUrlInput" readonly class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700">
+                        <button id="btnCopyShareUrl" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition shrink-0">
+                            복사
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-900 space-y-1">
+                    <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-github"></i> GitHub Pages 이용 시:</p>
+                    <p>Repository에 <code>index.html</code>로 업로드 후 GitHub Pages를 활성화하면 동기들도 동일하게 사용할 수 있습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        const STORAGE_KEY = "WORK_CALCULATOR_DATA_V2";
+        
+        // Sample September 2026 data generator matching the prompt criteria
+        let appState = {
+            currentYear: 2026,
+            currentMonth: 9, // September
+            totalAnnualDays: 15,
+            simulations: [], // array of simulated leave
+            days: [] // Array of day objects
+        };
+
+        // Helper to format minutes into HH:MM or H:MM
+        function formatMinutesToHM(totalMinutes) {
+            const isNegative = totalMinutes < 0;
+            const absM = Math.abs(totalMinutes);
+            const hrs = Math.floor(absM / 60);
+            const mins = absM % 60;
+            const padM = mins < 10 ? `0${mins}` : mins;
+            return `${isNegative ? '-' : ''}${hrs}:${padM}`;
+        }
+
+        // Helper to parse HH:MM into total minutes
+        function parseHMToMinutes(hmStr) {
+            if (!hmStr) return null;
+            const parts = hmStr.split(':');
+            if (parts.length !== 2) return null;
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+
+        function initDefaultData() {
+            const daysInMonth = 30; // Sep has 30 days
+            const days = [];
+
+            // 2026 Sep 1st is Tuesday
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(2026, 8, d);
+                const dayOfWeek = dateObj.getDay(); // 0: Sun, 6: Sat
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+                let dayData = {
+                    dateStr: `2026-09-${d < 10 ? '0' + d : d}`,
+                    dayNum: d,
+                    dayOfWeekStr: ['일', '월', '화', '수', '목', '금', '토'][dayOfWeek],
+                    isWeekend: isWeekend,
+                    isHoliday: isWeekend || d === 24 || d === 25, // Chuseok sample
+                    isSystem: false,
+                    clockIn: '',
+                    clockOut: '',
+                    outingType: 'NONE', // 'OUTING', 'VACATION', 'BUSINESS'
+                    outingHours: 0,
+                    recognizedMinutes: 0,
+                    manualPlan: false
+                };
+
+                // Sample Verified Past Data for Sep (1st - 18th sample)
+                if (d <= 18 && !dayData.isHoliday) {
+                    dayData.isSystem = true;
+                    // Default standard 08:30 ~ 17:30 (8 hrs = 480 mins)
+                    dayData.clockIn = "08:30";
+                    dayData.clockOut = "17:30";
+                    
+                    // Particular test cases mentioned in prompt:
+                    if (d === 10) { // Business Trip
+                        dayData.clockIn = "09:00";
+                        dayData.clockOut = "18:00";
+                        dayData.outingType = "BUSINESS";
+                        dayData.outingHours = 8;
+                    } else if (d === 15) { // Hospital outing scenario
+                        dayData.clockIn = "08:30";
+                        dayData.clockOut = "14:02";
+                        dayData.outingType = "OUTING";
+                        dayData.outingHours = 2; // 2 hrs hospital
+                    } else if (d === 16) { // Wednesday 08:30~16:00
+                        dayData.clockIn = "08:30";
+                        dayData.clockOut = "16:00";
+                    }
+                }
+
+                days.push(dayData);
+            }
+
+            appState.days = days;
+            saveStateToLocalStorage();
+        }
+
+        /**
+         * Calculates recognized work minutes for a day given clock in/out & break rules.
+         * Manual Example rule: 12:55~20:37 -> exactly 9:07 (547 mins) recognized
+         */
+        function calculateDayWorkMinutes(day) {
+            if (day.isHoliday) return 0;
+
+            let inM = parseHMToMinutes(day.clockIn);
+            let outM = parseHMToMinutes(day.clockOut);
+
+            if (inM === null || outM === null || outM <= inM) {
+                // If vacation covers full day
+                if (day.outingType === 'VACATION' && day.outingHours >= 8) return 480;
+                return 0;
+            }
+
+            let totalGrossM = outM - inM;
+            
+            // Standard lunch break subtraction (12:00 ~ 13:00 / 1 hr) if spanning across lunch
+            let lunchDeduction = 0;
+            const lunchStart = 12 * 60; // 12:00
+            const lunchEnd = 13 * 60;   // 13:00
+
+            // Overlap with lunch period
+            const overlapStart = Math.max(inM, lunchStart);
+            const overlapEnd = Math.min(outM, lunchEnd);
+            if (overlapEnd > overlapStart) {
+                lunchDeduction = (overlapEnd - overlapStart);
+            }
+
+            // Dinner break rule if working late (e.g., 18:00~18:30 30m break)
+            let dinnerDeduction = 0;
+            if (outM > 18 * 60 + 30 && inM < 18 * 60) {
+                dinnerDeduction = 30;
+            }
+
+            let netWorkM = totalGrossM - lunchDeduction - dinnerDeduction;
+
+            // Handle Outing / Leave Additions
+            if (day.outingType === 'OUTING' || day.outingType === 'VACATION') {
+                netWorkM += (day.outingHours * 60);
+            }
+
+            return Math.max(0, netWorkM);
+        }
+
+        function recalculateAll() {
+            let totalRecognizedMinutes = 0;
+            let totalTargetMinutes = 0;
+            let totalWorkDays = 0;
+            let remainingWorkDays = [];
+
+            const todayNum = 18; // Current simulated date in test scenario
+
+            appState.days.forEach(day => {
+                if (!day.isHoliday) {
+                    totalWorkDays++;
+                    totalTargetMinutes += 480; // 8 hrs standard per work day
+
+                    // Calculate recognized
+                    day.recognizedMinutes = calculateDayWorkMinutes(day);
+                    totalRecognizedMinutes += day.recognizedMinutes;
+
+                    if (day.dayNum >= todayNum && !day.isSystem && !day.manualPlan) {
+                        remainingWorkDays.push(day);
+                    }
+                }
+            });
+
+            // Calculate Balance
+            const balanceMinutes = totalRecognizedMinutes - totalTargetMinutes;
+
+            // Recalculate Recommendation for remaining unplanned days
+            const neededMinutesForMonth = totalTargetMinutes - totalRecognizedMinutes;
+
+            // Render Results to UI
+            document.getElementById('totalRecognizedHours').innerText = formatMinutesToHM(totalRecognizedMinutes);
+            document.getElementById('totalTargetHours').innerText = formatMinutesToHM(totalTargetMinutes);
+            
+            const balDisp = document.getElementById('timeBalanceDisplay');
+            if (balanceMinutes >= 0) {
+                balDisp.innerText = `+${formatMinutesToHM(balanceMinutes)} 여유`;
+                balDisp.className = "text-lg font-bold text-emerald-400 mt-0.5";
+            } else {
+                balDisp.innerText = `${formatMinutesToHM(balanceMinutes)} 부족`;
+                balDisp.className = "text-lg font-bold text-rose-400 mt-0.5";
+            }
+
+            document.getElementById('remainingDaysCount').innerText = `${remainingWorkDays.length}일 / ${formatMinutesToHM(Math.max(0, neededMinutesForMonth))}`;
+
+            // Recommendation Tip text
+            if (remainingWorkDays.length > 0) {
+                const recPerDayM = Math.ceil(neededMinutesForMonth / remainingWorkDays.length);
+                const defaultInM = 8 * 60 + 30; // 08:30
+                const recommendedOutM = defaultInM + recPerDayM + 60; // adding lunch 1hr
+                
+                const recOutStr = formatMinutesToHM(recommendedOutM);
+                document.getElementById('recommendationTip').innerHTML = `남은 날 추천 퇴근시각: <strong>${recOutStr}</strong> (08:30 출근 기준)`;
+            } else {
+                document.getElementById('recommendationTip').innerText = "이번 달 모든 평일 근무 계획 수립 완료!";
+            }
+
+            checkValidationWarnings();
+            renderTable();
+            renderVacationTab();
+        }
+
+        function checkValidationWarnings() {
+            const warningContainer = document.getElementById('warningsAlertContainer');
+            warningContainer.innerHTML = '';
+            let warnings = [];
+
+            appState.days.forEach(day => {
+                if (day.isHoliday) return;
+
+                // Outing > 2 hours alert
+                if (day.outingType === 'OUTING' && day.outingHours > 2) {
+                    warnings.push(`<strong>${day.dayNum}일:</strong> 외출 시간이 2시간을 초과했습니다. (${day.outingHours}시간)`);
+                }
+
+                // Half day leave granularity (must be in 30 min / 0.5hr increments)
+                if (day.outingType === 'VACATION' && (day.outingHours % 0.5 !== 0)) {
+                    warnings.push(`<strong>${day.dayNum}일:</strong> 연차는 30분 단위(0.5시간)로 설정해야 합니다.`);
+                }
+
+                // Core time check (Mandatory working hours 10:00 ~ 15:00)
+                if (day.clockIn && day.clockOut) {
+                    const inM = parseHMToMinutes(day.clockIn);
+                    const outM = parseHMToMinutes(day.clockOut);
+                    const coreStart = 10 * 60;
+                    const coreEnd = 15 * 60;
+
+                    if (inM > coreStart || outM < coreEnd) {
+                        warnings.push(`<strong>${day.dayNum}일:</strong> 의무 근무시간(10:00 ~ 15:00) 미충족 경고.`);
+                    }
+                }
+            });
+
+            if (warnings.length > 0) {
+                warningContainer.classList.remove('hidden');
+                warnings.forEach(w => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center gap-2";
+                    div.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <span>${w}</span>`;
+                    warningContainer.appendChild(div);
+                });
+            } else {
+                warningContainer.classList.add('hidden');
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('workLogTableBody');
+            tbody.innerHTML = '';
+
+            appState.days.forEach(day => {
+                const tr = document.createElement('tr');
+                tr.className = day.isHoliday ? "bg-slate-50 text-slate-400" : "hover:bg-slate-50/80 transition";
+
+                // Date cell
+                const dateTd = `<td class="py-3 px-4 font-medium">
+                    ${day.dayNum}일 (${day.dayOfWeekStr})
+                    ${day.isHoliday ? '<span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-1">휴일</span>' : ''}
+                </td>`;
+
+                // Clock In & Out Inputs
+                const clockInTd = `<td class="py-3 px-4">
+                    <input type="time" value="${day.clockIn}" data-day="${day.dayNum}" data-field="clockIn" 
+                           class="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-mono w-24 focus:ring-1 focus:ring-indigo-500 outline-none ${day.isHoliday ? 'bg-slate-100' : ''}" 
+                           ${day.isHoliday ? 'disabled' : ''}>
+                </td>`;
+
+                const clockOutTd = `<td class="py-3 px-4">
+                    <input type="time" value="${day.clockOut}" data-day="${day.dayNum}" data-field="clockOut" 
+                           class="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-mono w-24 focus:ring-1 focus:ring-indigo-500 outline-none ${day.isHoliday ? 'bg-slate-100' : ''}" 
+                           ${day.isHoliday ? 'disabled' : ''}>
+                </td>`;
+
+                // Outing/Leave display
+                let outingText = '-';
+                if (day.outingType !== 'NONE') {
+                    const labelMap = { 'OUTING': '외출', 'VACATION': '연차', 'BUSINESS': '출장' };
+                    outingText = `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs border border-indigo-100">${labelMap[day.outingType]} ${day.outingHours}h</span>`;
+                }
+                const outingTd = `<td class="py-3 px-4 text-xs">${outingText}</td>`;
+
+                // Recognized hours
+                const recognizedTd = `<td class="py-3 px-4 font-semibold text-slate-800">${formatMinutesToHM(day.recognizedMinutes)}</td>`;
+
+                // Source Badge
+                let badge = '<span class="text-[11px] text-slate-400">계획</span>';
+                if (day.isSystem) {
+                    badge = '<span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-check text-[9px]"></i> 시스템</span>';
+                }
+                const sourceTd = `<td class="py-3 px-4 text-center">${badge}</td>`;
+
+                // Action
+                const actionTd = `<td class="py-3 px-4 text-right">
+                    <button class="btnOpenModal text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition" data-day="${day.dayNum}">
+                        <i class="fa-solid fa-pen-to-square"></i> 상세
+                    </button>
+                </td>`;
+
+                tr.innerHTML = dateTd + clockInTd + clockOutTd + outingTd + recognizedTd + sourceTd + actionTd;
+                tbody.appendChild(tr);
+            });
+
+            // Attach Table Event Listeners
+            document.querySelectorAll('input[data-field]').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const dayNum = parseInt(e.target.getAttribute('data-day'), 10);
+                    const field = e.target.getAttribute('data-field');
+                    const val = e.target.value;
+
+                    const day = appState.days.find(d => d.dayNum === dayNum);
+                    if (day) {
+                        day[field] = val;
+                        day.isSystem = false; // Overridden by user
+                        day.manualPlan = true;
+                        recalculateAll();
+                        saveStateToLocalStorage();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.btnOpenModal').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const dayNum = parseInt(e.currentTarget.getAttribute('data-day'), 10);
+                    openEditModal(dayNum);
+                });
+            });
+        }
+
+        function renderVacationTab() {
+            // Populate Date Select dropdown for simulation
+            const dateSelect = document.getElementById('simDateSelect');
+            dateSelect.innerHTML = '';
+            appState.days.forEach(d => {
+                if (!d.isHoliday) {
+                    const option = document.createElement('option');
+                    option.value = d.dayNum;
+                    option.innerText = `9월 ${d.dayNum}일 (${d.dayOfWeekStr})`;
+                    dateSelect.appendChild(option);
+                }
+            });
+
+            // Calculate vacation days count
+            let systemUsedVacation = 0;
+            appState.days.forEach(d => {
+                if (d.outingType === 'VACATION') {
+                    systemUsedVacation += (d.outingHours / 8);
+                }
+            });
+
+            let simDaysCount = 0;
+            appState.simulations.forEach(s => {
+                simDaysCount += s.vacationDays;
+            });
+
+            const totalAnnual = parseFloat(document.getElementById('inputTotalAnnual').value) || 15;
+            const finalRemaining = totalAnnual - systemUsedVacation - simDaysCount;
+
+            document.getElementById('displayUsedVacation').innerHTML = `${systemUsedVacation.toFixed(1)} <span class="text-sm font-normal text-slate-500">일</span>`;
+            document.getElementById('displaySimulatedVacation').innerHTML = `+${simDaysCount.toFixed(2)} <span class="text-sm font-normal text-indigo-400">일</span>`;
+            document.getElementById('displayFinalRemainingVacation').innerHTML = `${finalRemaining.toFixed(2)} <span class="text-sm font-normal text-emerald-100">일</span>`;
+
+            // Render Simulated Items Table
+            const tbody = document.getElementById('simulatedTableBody');
+            if (appState.simulations.length === 0) {
+                tbody.innerHTML = `<tr>
+                    <td colspan="5" class="p-6 text-center text-slate-400 text-xs">
+                        추가된 연차 시뮬레이션 항목이 없습니다. 상단에서 연차를 선택해보세요!
+                    </td>
+                </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            appState.simulations.forEach((sim, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 font-medium">9월 ${sim.dayNum}일</td>
+                    <td class="p-3"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">${sim.typeName}</span></td>
+                    <td class="p-3 text-emerald-600 font-semibold">+${sim.recognizedHours}시간 인정</td>
+                    <td class="p-3 font-semibold text-slate-700">-${sim.vacationDays}일 차감</td>
+                    <td class="p-3 text-right">
+                        <button class="text-rose-500 hover:text-rose-700 text-xs btnDeleteSim" data-idx="${idx}"><i class="fa-solid fa-trash"></i> 삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.querySelectorAll('.btnDeleteSim').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+                    appState.simulations.splice(idx, 1);
+                    recalculateAll();
+                });
+            });
+        }
+
+        let currentModalDayNum = null;
+
+        function openEditModal(dayNum) {
+            currentModalDayNum = dayNum;
+            const day = appState.days.find(d => d.dayNum === dayNum);
+            if (!day) return;
+
+            document.getElementById('modalDateTitle').innerHTML = `<i class="fa-solid fa-calendar-day"></i> 9월 ${day.dayNum}일 (${day.dayOfWeekStr}) 상세 수정`;
+            document.getElementById('modalClockIn').value = day.clockIn || '';
+            document.getElementById('modalClockOut').value = day.clockOut || '';
+            document.getElementById('modalOutingType').value = day.outingType;
+            document.getElementById('modalOutingHours').value = day.outingHours || '';
+            document.getElementById('modalIsHoliday').checked = day.isHoliday;
+
+            const sysBadge = document.getElementById('modalSystemBadge');
+            if (day.isSystem) sysBadge.classList.remove('hidden');
+            else sysBadge.classList.add('hidden');
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        // Handle Excel File Parsing via SheetJS
+        function handleExcelUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    // Process rows
+                    json.forEach(row => {
+                        if (!row || row.length < 2) return;
+                        // Search for date column and times
+                        const dateStr = String(row[0] || '');
+                        const clockIn = String(row[1] || '');
+                        const clockOut = String(row[2] || '');
+
+                        const dayMatch = dateStr.match(/\d{1,2}\/(\d{1,2})|\d{4}-\d{2}-(\d{2})/);
+                        if (dayMatch) {
+                            const dNum = parseInt(dayMatch[1] || dayMatch[2], 10);
+                            const day = appState.days.find(d => d.dayNum === dNum);
+                            if (day) {
+                                day.isSystem = true;
+                                if (clockIn.includes(':')) day.clockIn = clockIn.trim();
+                                if (clockOut.includes(':')) day.clockOut = clockOut.trim();
+                            }
+                        }
+                    });
+
+                    document.getElementById('uploadStatus').classList.remove('hidden');
+                    document.getElementById('fileNameDisplay').innerText = file.name;
+                    recalculateAll();
+                    alert("엑셀 파일이 성공적으로 연동되었습니다! 시스템 근태 기록이 덮어씌워졌습니다.");
+                } catch (err) {
+                    alert("엑셀 파일을 파싱하는 도중 오류가 발생했습니다. 올바른 근무현황.xlsx 파일인지 확인해주세요.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function saveStateToLocalStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        function loadStateFromLocalStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    appState = JSON.parse(saved);
+                } catch (e) {
+                    initDefaultData();
+                }
+            } else {
+                initDefaultData();
+            }
+        }
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStateFromLocalStorage();
+            recalculateAll();
+
+            // Tab Toggle Events
+            const tabBtnMain = document.getElementById('tabBtnMain');
+            const tabBtnVacation = document.getElementById('tabBtnVacation');
+            const tabContentMain = document.getElementById('tabContentMain');
+            const tabContentVacation = document.getElementById('tabContentVacation');
+
+            tabBtnMain.addEventListener('click', () => {
+                tabBtnMain.className = "pb-3 border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2";
+                tabBtnVacation.className = "pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition";
+                tabContentMain.classList.remove('hidden');
+                tabContentVacation.classList.add('hidden');
+            });
+
+            tabBtnVacation.addEventListener('click', () => {
+                tabBtnVacation.className = "pb-3 border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2";
+                tabBtnMain.className = "pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition";
+                tabContentVacation.classList.remove('hidden');
+                tabContentMain.classList.add('hidden');
+            });
+
+            // Simulation Add Listener
+            document.getElementById('simTypeSelect').addEventListener('change', (e) => {
+                const hourlyCont = document.getElementById('hourlyTimeContainer');
+                if (e.target.value === 'HOURLY') hourlyCont.classList.remove('hidden');
+                else hourlyCont.classList.add('hidden');
+            });
+
+            document.getElementById('btnAddSimulation').addEventListener('click', () => {
+                const dayNum = parseInt(document.getElementById('simDateSelect').value, 10);
+                const simType = document.getElementById('simTypeSelect').value;
+
+                let recognizedHours = 8;
+                let vacationDays = 1.0;
+                let typeName = "종일 연차";
+
+                if (simType === 'AM_HALF') {
+                    recognizedHours = 4;
+                    vacationDays = 0.5;
+                    typeName = "오전 반차";
+                } else if (simType === 'PM_HALF') {
+                    recognizedHours = 4;
+                    vacationDays = 0.5;
+                    typeName = "오후 반차";
+                } else if (simType === 'HALF_HALF') {
+                    recognizedHours = 2;
+                    vacationDays = 0.25;
+                    typeName = "반반차";
+                } else if (simType === 'HOURLY') {
+                    const hrs = parseFloat(document.getElementById('simHoursInput').value) || 1;
+                    recognizedHours = hrs;
+                    vacationDays = hrs / 8;
+                    typeName = `시간제 연차 (${hrs}h)`;
+                }
+
+                appState.simulations.push({
+                    dayNum,
+                    simType,
+                    typeName,
+                    recognizedHours,
+                    vacationDays
+                });
+
+                recalculateAll();
+            });
+
+            // Modal Save
+            document.getElementById('btnModalSave').addEventListener('click', () => {
+                if (!currentModalDayNum) return;
+                const day = appState.days.find(d => d.dayNum === currentModalDayNum);
+                if (day) {
+                    day.clockIn = document.getElementById('modalClockIn').value;
+                    day.clockOut = document.getElementById('modalClockOut').value;
+                    day.outingType = document.getElementById('modalOutingType').value;
+                    day.outingHours = parseFloat(document.getElementById('modalOutingHours').value) || 0;
+                    day.isHoliday = document.getElementById('modalIsHoliday').checked;
+                    day.isSystem = false;
+                    day.manualPlan = true;
+                }
+                document.getElementById('editModal').classList.add('hidden');
+                recalculateAll();
+                saveStateToLocalStorage();
+            });
+
+            document.getElementById('btnModalCancel').addEventListener('click', () => {
+                document.getElementById('editModal').classList.add('hidden');
+            });
+            document.getElementById('btnCloseModal').addEventListener('click', () => {
+                document.getElementById('editModal').classList.add('hidden');
+            });
+
+            // Quick plan preset buttons
+            document.querySelectorAll('.btnQuickPlan').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetHrs = parseFloat(e.currentTarget.getAttribute('data-hours'));
+                    appState.days.forEach(d => {
+                        if (!d.isHoliday && !d.isSystem) {
+                            d.clockIn = "08:30";
+                            // 8h work + 1h lunch = 9h total span -> 17:30
+                            const endMinutes = 8 * 60 + 30 + (targetHrs * 60) + 60;
+                            d.clockOut = formatMinutesToHM(endMinutes);
+                            d.manualPlan = true;
+                        }
+                    });
+                    recalculateAll();
+                    saveStateToLocalStorage();
+                });
+            });
+
+            // Drag and Drop & File Upload handlers
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-indigo-100'); });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-indigo-100'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('bg-indigo-100');
+                if (e.dataTransfer.files.length > 0) handleExcelUpload(e.dataTransfer.files[0]);
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleExcelUpload(e.target.files[0]);
+            });
+
+            // Reset Data
+            document.getElementById('btnResetData').addEventListener('click', () => {
+                if (confirm("모든 설정 및 입력 기록을 초기화하시겠습니까?")) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    initDefaultData();
+                    recalculateAll();
+                }
+            });
+
+            // Share Modal & Clipboard Copy
+            document.getElementById('btnShareModal').addEventListener('click', () => {
+                document.getElementById('shareUrlInput').value = window.location.href;
+                document.getElementById('shareModal').classList.remove('hidden');
+            });
+            document.getElementById('btnCloseShareModal').addEventListener('click', () => {
+                document.getElementById('shareModal').classList.add('hidden');
+            });
+            document.getElementById('btnCopyShareUrl').addEventListener('click', () => {
+                const input = document.getElementById('shareUrlInput');
+                input.select();
+                document.execCommand('copy');
+                alert("공유 링크가 클립보드에 복사되었습니다!");
+            });
+        });
+    </script>
+</body>
+</html>
