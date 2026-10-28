@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 근무시간 & 연차 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-20">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-briefcase text-2xl text-indigo-200"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">근무시간 & 연차 시뮬레이터</h1>
+                    <p class="text-xs text-indigo-200">선택근무제 (실시간 오늘 날짜 기준 실적 자동 전환) v3.0</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="shareLink()" class="bg-indigo-500 hover:bg-indigo-400 text-white text-xs px-3 py-2 rounded-lg transition flex items-center gap-1.5 font-medium">
+                    <i class="fa-solid fa-share-nodes"></i> 공유하기
+                </button>
