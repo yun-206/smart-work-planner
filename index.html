@@ -1,803 +1,427 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스마트 근무시간 & 연차 시뮬레이터</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        body { font-family: 'Pretendard', sans-serif; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>K-pop 해외공연 데이터 도구</title>
+  <meta name="description" content="K-pop 해외공연 데이터셋을 공식 수치로 조립하고 검증하는 도구. 파일은 브라우저 안에서만 처리해요.">
+  <meta name="theme-color" content="#121212">
+  <script>/* 저장된 테마를 그리기 전에 적용 (깜빡임 방지) */
+    try { if (localStorage.getItem('tourdata-theme') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) {}
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2301539f'/%3E%3Cpath d='M9 22V10m7 12V14m7 8v-5' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+  <script src="checker.js" defer></script>
+  <script src="assembler.js" defer></script>
+  <script src="js/app.js" defer></script>
+  <script src="js/story.js" defer></script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen pb-20">
+<body>
+  <a class="skip" href="#sec-asm">도구로 바로 가기</a>
 
-    <!-- Header -->
-    <header class="bg-indigo-600 text-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-briefcase text-2xl text-indigo-200"></i>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">근무시간 & 연차 시뮬레이터</h1>
-                    <p class="text-xs text-indigo-200">선택근무제 (미래날짜 실적오류 수정 완제) v3.0</p>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="shareLink()" class="bg-indigo-500 hover:bg-indigo-400 text-white text-xs px-3 py-2 rounded-lg transition flex items-center gap-1.5 font-medium">
-                    <i class="fa-solid fa-share-nodes"></i> 공유하기
-                </button>
-                <button onclick="resetData()" class="bg-rose-500 hover:bg-rose-400 text-white text-xs px-3 py-2 rounded-lg transition flex items-center gap-1.5 font-medium">
-                    <i class="fa-solid fa-rotate-left"></i> 초기화
-                </button>
-            </div>
+  <!-- ================= 상단 바 ================= -->
+  <header class="bar" id="bar">
+    <div class="bar__inner">
+      <a class="bar__brand" href="#top" aria-label="처음으로">
+        <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9 22V10m7 12V14m7 8v-5" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+        <span>Tour Data</span>
+      </a>
+      <nav class="seg" aria-label="기능으로 이동">
+        <span class="seg__thumb" id="segThumb" aria-hidden="true"></span>
+        <a class="tab" href="#sec-asm" data-tab="asm">조립·순위</a>
+        <a class="tab" href="#sec-chk" data-tab="chk">검증</a>
+        <a class="tab" href="#sec-cnv" data-tab="cnv">원본 변환</a>
+      </nav>
+      <div class="bar__end">
+        <button type="button" class="theme" id="themeToggle" role="switch" aria-checked="false" aria-label="라이트 모드">
+          <span class="theme__knob" aria-hidden="true"></span>
+          <svg class="theme__ico theme__ico--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+          <svg class="theme__ico theme__ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
+        </button>
+        <a class="btn btn--accent btn--sm bar__cta" href="#sec-asm">바로 사용하기</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ================= 히어로 ================= -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero__inner">
+        <p class="hero__lead">K팝 해외공연 데이터를<br>공식 수치로만 쌓고, 순위를 매기고, 검증해요.</p>
+      </div>
+      <h1 class="hero__word" id="hero-title" aria-label="Tour Data">
+        <span class="hero__word-line">Tour</span><span class="hero__word-line hero__word-line--2">Data</span>
+      </h1>
+      <dl class="hero__facts">
+        <div><dt>2,600+</dt><dd>2010년부터 쌓은 해외 공연 행</dd></div>
+        <div><dt>21</dt><dd>자동으로 확인하는 데이터 규칙</dd></div>
+        <div><dt>0</dt><dd>서버로 보내는 파일. 모두 브라우저 안에서 처리</dd></div>
+      </dl>
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee__track">
+          <span>BTS</span><span>BIGBANG</span><span>TWICE</span><span>Stray Kids</span><span>LE SSERAFIM</span><span>TREASURE</span><span>ENHYPEN</span><span>aespa</span><span>IVE</span><span>BABYMONSTER</span><span>SEVENTEEN</span><span>TXT</span><span>KATSEYE</span><span>EXO</span><span>BLACKPINK</span>
+          <span>BTS</span><span>BIGBANG</span><span>TWICE</span><span>Stray Kids</span><span>LE SSERAFIM</span><span>TREASURE</span><span>ENHYPEN</span><span>aespa</span><span>IVE</span><span>BABYMONSTER</span><span>SEVENTEEN</span><span>TXT</span><span>KATSEYE</span><span>EXO</span><span>BLACKPINK</span>
         </div>
-    </header>
+      </div>
+    </section>
 
-    <main class="max-w-6xl mx-auto px-4 mt-6 space-y-6">
+    <!-- ================= 소개 문장 ================= -->
+    <section class="statement" aria-label="도구 소개">
+      <p class="statement__text" id="statement">
+        엑셀 자료를 올리면 공연 목록 정리, 순위 집계, 오류 점검까지 원하는 결과를 바로 받을 수 있어요.
+        순위는 공식 관객수로만 계산하고, 오류는 행 단위로 짚어 줘요.
+        아래로 내려가며 세 가지 기능을 살펴보세요.
+      </p>
+    </section>
 
-        <!-- Top Section: Excel Upload & Summary Dashboard -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Excel Upload Box -->
-            <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <h2 class="font-bold text-slate-800 flex items-center gap-2">
-                            <i class="fa-solid fa-file-excel text-emerald-600"></i> 근무현황 엑셀 불러오기
-                        </h2>
-                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">실시간 초과 적립시간 계산 지원</span>
-                    </div>
-                    <p class="text-xs text-slate-500 mb-4">회사 인트라넷에서 다운로드한 <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">근무현황.xlsx</code> 파일을 업로드하시거나 아래에서 수기로 입력하세요.</p>
-                    
-                    <div id="dropZone" onclick="document.getElementById('fileInput').click()" 
-                         class="border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/30 rounded-xl p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2">
-                        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xl">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                        </div>
-                        <p class="text-sm font-semibold text-slate-700">클릭하거나 엑셀 파일(.xlsx)을 여기에 올려주세요</p>
-                        <p class="text-xs text-slate-400">서버에 저장되지 않고 개인 브라우저에서만 안전하게 처리됩니다.</p>
-                        <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden" onchange="handleFileSelect(event)">
-                    </div>
+    <!-- ================= 기능 소개: 스크롤 스토리텔링 ================= -->
+    <!-- 챕터 1: 조립·순위 -->
+    <section class="chapter" id="intro-asm" data-tab="asm" aria-labelledby="ch1-title">
+      <div class="chapter__sticky">
+        <div class="chapter__copy">
+          <p class="chapter__no">기능 1</p>
+          <h2 class="chapter__title" id="ch1-title">조립·순위</h2>
+          <p class="chapter__desc">원본 데이터 한 파일로 결과 엑셀을 만들고, 연도별 상위 15팀을 자동으로 산정해요.</p>
+          <ol class="steps">
+            <li class="is-active"><button type="button" class="steps__btn"><b>원본과 업데이트 파일 올리기</b></button><span>새 공연은 업데이트 파일에 추가·수정·삭제로 적어 두면 합쳐서 계산해요.</span></li>
+            <li><button type="button" class="steps__btn"><b>공식 수치로 순위 계산</b></button><span>공식 관객수가 있으면 그 값, 없으면 수용인원×일수로 더해요. 합계만 발표된 공연은 한 번만 더해요.</span></li>
+            <li><button type="button" class="steps__btn"><b>결과 엑셀 받기</b></button><span>두 시트, 연도별 목록, 변수 설명이 한 파일로 나오고, 예정 공연은 색으로 표시돼요.</span></li>
+          </ol>
+          <div class="chapter__actions">
+            <a class="cta" href="#sec-asm" data-go="asm"><span>조립·순위 바로 쓰기</span><span class="cta__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+            <span class="chapter__hint"><span class="chapter__hint-ico" aria-hidden="true">↓</span>계속 내리면 다음 기능: 검증</span>
+          </div>
+        </div>
+        <div class="stage" aria-hidden="true">
+          <div class="win">
+            <div class="win__bar"><i></i><i></i><i></i><span>조립·순위</span></div>
+            <div class="win__body">
+              <div class="frame frame--files is-active">
+                <div class="file f1"><em>xlsx</em><b>원본데이터.xlsx</b><small>공연 2,524행</small></div>
+                <div class="file f2"><em>xlsx</em><b>업데이트.xlsx</b><small>추가 7, 수정 3</small></div>
+                <div class="dropbox"><span></span>여기에 놓기</div>
+              </div>
+              <div class="frame frame--rank">
+                <p class="frame__cap">2026년 순위</p>
+                <ul class="bars">
+                  <li style="--w:100%"><span>BTS</span><i></i><b>3,004,102</b></li>
+                  <li style="--w:51%"><span>BIGBANG</span><i></i><b>1,545,088</b></li>
+                  <li style="--w:34%"><span>TWICE</span><i></i><b>1,023,226</b></li>
+                  <li style="--w:31%"><span>Stray Kids</span><i></i><b>923,738</b></li>
+                  <li style="--w:19%"><span>LE SSERAFIM</span><i></i><b>578,755</b></li>
+                  <li style="--w:19%"><span>TREASURE</span><i></i><b>578,000</b></li>
+                </ul>
+              </div>
+              <div class="frame frame--out">
+                <div class="sheet">
+                  <div class="sheet__row h"><span>artist</span><span>city</span><span>capacity</span><span>remarks</span></div>
+                  <div class="sheet__row"><span>BTS</span><span>Bangkok</span><span>50,000</span><span class="tag">[예정]</span></div>
+                  <div class="sheet__row"><span>BTS</span><span>Singapore</span><span>55,000</span><span class="tag">[예정]</span></div>
+                  <div class="sheet__row"><span>BIGBANG</span><span>Tokyo</span><span>55,000</span><span class="tag">[예정]</span></div>
+                  <div class="sheet__row"><span>TWICE</span><span>London</span><span>—</span><span></span></div>
                 </div>
-
-                <div id="fileInfo" class="mt-4 hidden flex justify-between items-center text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 p-3 rounded-lg">
-                    <span class="font-medium flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-check text-emerald-600"></i> <span id="fileName">근무현황.xlsx</span> 파일이 연동되었습니다.
-                    </span>
-                    <button onclick="clearExcelData()" class="text-rose-600 hover:underline font-bold">엑셀 연결 해제</button>
-                </div>
+                <div class="sheet__tabs"><span class="on">해외 공연 현황</span><span>(2)</span><span>연도별 아티스트 목록</span><span>변수 설명</span></div>
+                <div class="badge"><span></span>결과 엑셀 준비됨</div>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-            <!-- Summary Card with Month Switcher -->
-            <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-8 opacity-10 text-9xl font-black pointer-events-none" id="bgMonthNum">9</div>
-                
-                <div>
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">대상 월 선택:</span>
-                            <select id="monthSelect" onchange="changeMonth(this.value)" class="bg-slate-800 text-white font-bold text-sm border border-slate-700 rounded-lg px-2.5 py-1 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                                <option value="9">2026년 9월</option>
-                                <option value="10">2026년 10월</option>
-                                <option value="11">2026년 11월 (11/23 만료)</option>
-                            </select>
-                        </div>
-                        <span id="statusBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-semibold">정산 중</span>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 my-3 border-y border-slate-800 py-3">
-                        <div>
-                            <p class="text-[11px] text-slate-400">총 인정 근무시간</p>
-                            <p class="text-lg font-bold text-indigo-400" id="totalWorked">0:00</p>
-                        </div>
-                        <div>
-                            <p class="text-[11px] text-slate-400">오늘 기준 누계 초과/부족</p>
-                            <p class="text-lg font-bold text-emerald-400" id="currentOvertime">+0:00 여유</p>
-                        </div>
-                        <div>
-                            <p class="text-[11px] text-slate-400">월 목표시간 (소정)</p>
-                            <p class="text-lg font-bold text-slate-200" id="targetWork">160:00</p>
-                        </div>
-                        <div>
-                            <p class="text-[11px] text-slate-400">월 잔여 목표시간</p>
-                            <p class="text-lg font-bold text-amber-400" id="diffWork">160:00 필요</p>
-                        </div>
-                    </div>
+    <!-- 챕터 2: 검증 -->
+    <section class="chapter" id="intro-chk" data-tab="chk" aria-labelledby="ch2-title">
+      <div class="chapter__sticky">
+        <div class="chapter__copy">
+          <p class="chapter__no">기능 2</p>
+          <h2 class="chapter__title" id="ch2-title">검증</h2>
+          <p class="chapter__desc">21개 규칙으로 모든 행을 훑어 오류 후보를 찾고, 어디를 고쳐야 하는지 알려 줘요.</p>
+          <ol class="steps">
+            <li class="is-active"><button type="button" class="steps__btn"><b>데이터셋 올리기</b></button><span>결과 엑셀을 올리면 두 시트를 행마다 대조해요. 조립 직후에는 자동으로 실행돼요.</span></li>
+            <li><button type="button" class="steps__btn"><b>등급별로 확인</b></button><span>오류, 확인필요, 참고 세 등급으로 나눠 보여 주고 항목별로 걸러 볼 수 있어요.</span></li>
+            <li><button type="button" class="steps__btn"><b>리포트로 내보내기</b></button><span>오류 리포트와 공연장 마스터 초안을 엑셀로 받아 출처를 확인해요.</span></li>
+          </ol>
+          <div class="chapter__actions">
+            <a class="cta" href="#sec-chk" data-go="chk"><span>검증 바로 쓰기</span><span class="cta__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+            <span class="chapter__hint"><span class="chapter__hint-ico" aria-hidden="true">↓</span>계속 내리면 다음 기능: 원본 변환</span>
+          </div>
+        </div>
+        <div class="stage" aria-hidden="true">
+          <div class="win">
+            <div class="win__bar"><i></i><i></i><i></i><span>검증</span></div>
+            <div class="win__body">
+              <div class="frame frame--scan is-active">
+                <div class="scan">
+                  <div class="scan__line"></div>
+                  <div class="rows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
                 </div>
-
-                <div class="space-y-2 text-xs">
-                    <div class="bg-slate-800/80 rounded-xl p-2.5 text-slate-300 flex items-center justify-between">
-                        <span class="text-slate-400 flex items-center gap-1"><i class="fa-solid fa-lightbulb text-amber-400"></i> 남은 평일 추천 퇴근:</span>
-                        <span class="font-bold text-white ml-1" id="recommendTime">계획 필요</span>
-                    </div>
-                    <div class="bg-slate-800/80 rounded-xl p-2.5 text-slate-300 flex items-center justify-between">
-                        <span class="text-slate-400 flex items-center gap-1"><i class="fa-solid fa-flag-checkered text-rose-400"></i> 인턴 종료일:</span>
-                        <span class="font-bold text-rose-300">2026년 11월 23일(월)</span>
-                    </div>
+                <p class="frame__cap">2,639행 검사 중</p>
+              </div>
+              <div class="frame frame--flags">
+                <div class="tiles">
+                  <div class="t t--err"><small>오류</small><b>1</b></div>
+                  <div class="t t--warn"><small>확인필요</small><b>39</b></div>
+                  <div class="t t--info"><small>참고</small><b>0</b></div>
                 </div>
+                <ul class="flags">
+                  <li><span class="d d--err"></span>관객수가 수용인원보다 많아요</li>
+                  <li><span class="d d--warn"></span>같은 공연장 capacity가 서로 달라요</li>
+                  <li><span class="d d--warn"></span>capacity에 여러 날 합계가 들어간 것 같아요</li>
+                </ul>
+              </div>
+              <div class="frame frame--export">
+                <div class="chipset"><span class="on">확인필요 39</span><span>같은 공연장 22</span><span>합계 의심 13</span></div>
+                <div class="file f3"><em>xlsx</em><b>검증리포트.xlsx</b><small>40건, 제안값 포함</small></div>
+                <div class="file f4"><em>xlsx</em><b>공연장_마스터_초안.xlsx</b><small>880곳</small></div>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
+    <!-- 챕터 3: 원본 변환 -->
+    <section class="chapter" id="intro-cnv" data-tab="cnv" aria-labelledby="ch3-title">
+      <div class="chapter__sticky">
+        <div class="chapter__copy">
+          <p class="chapter__no">기능 3</p>
+          <h2 class="chapter__title" id="ch3-title">원본 변환</h2>
+          <p class="chapter__desc">지금까지 쓰던 결과 엑셀을 원본 데이터로 바꿔, 다음부터는 원본만 고치면 되게 해요.</p>
+          <ol class="steps">
+            <li class="is-active"><button type="button" class="steps__btn"><b>기존 엑셀 올리기</b></button><span>'해외 공연 현황' 시트가 있는 파일이면 되고, 처음 한 번만 하면 돼요.</span></li>
+            <li><button type="button" class="steps__btn"><b>표시는 열로 정리</b></button><span>[예정] 태그는 떼고, "(소속사 제공)" 같은 표시는 별도 열로 옮겨요.</span></li>
+            <li><button type="button" class="steps__btn"><b>원본 데이터 받기</b></button><span>공연목록, 공연장마스터, 공식누적, 설정 시트로 나뉜 파일을 받아요.</span></li>
+          </ol>
+          <div class="chapter__actions">
+            <a class="cta" href="#sec-cnv" data-go="cnv"><span>원본 변환 바로 쓰기</span><span class="cta__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+            <span class="chapter__hint"><span class="chapter__hint-ico" aria-hidden="true">↓</span>계속 내리면 바로 도구가 나와요</span>
+          </div>
+        </div>
+        <div class="stage" aria-hidden="true">
+          <div class="win">
+            <div class="win__bar"><i></i><i></i><i></i><span>원본 변환</span></div>
+            <div class="win__body">
+              <div class="frame frame--legacy is-active">
+                <div class="sheet">
+                  <div class="sheet__row h"><span>artist</span><span>attendance</span><span>remarks</span></div>
+                  <div class="sheet__row"><span>BTS</span><span>151,500 (소속사 제공)</span><span>Lima</span></div>
+                  <div class="sheet__row"><span>TREASURE</span><span>45,000 (소속사 제공)</span><span>Tokyo</span></div>
+                  <div class="sheet__row"><span>PLAVE</span><span>—</span><span class="tag">[예정] Pasadena</span></div>
+                </div>
+                <div class="sheet__tabs"><span class="on">해외 공연 현황</span><span>(2)</span><span>연도별 아티스트 목록</span></div>
+              </div>
+              <div class="frame frame--split">
+                <div class="cols">
+                  <div><small>attendance</small><b>151,500</b><b>45,000</b><b>—</b></div>
+                  <div class="arrow"></div>
+                  <div><small>attendance_label</small><b>소속사 제공</b><b>소속사 제공</b><b>—</b></div>
+                </div>
+                <p class="frame__cap">표시를 값과 출처로 나눠요</p>
+              </div>
+              <div class="frame frame--source">
+                <div class="stack">
+                  <span>공연목록</span><span>공연장마스터</span><span>공식누적</span><span>설정</span>
+                </div>
+                <div class="badge"><span></span>원본데이터.xlsx</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 실제 도구 ================= -->
+    <div class="tools-intro" id="tools">
+      <h2>이제 직접 써 보세요.</h2>
+      <p>세 기능이 한 페이지에 이어져 있어요. 위 탭을 눌러 원하는 기능으로 바로 갈 수 있어요.</p>
+    </div>
+
+    <!-- 1 조립·순위 -->
+    <section class="tool" id="sec-asm" data-tab="asm" aria-labelledby="t1">
+      <header class="tool__head">
+        <span class="tool__no">1</span>
+        <div><h2 id="t1" tabindex="-1">조립·순위</h2><p>원본 데이터를 올리면 결과 엑셀과 순위가 나와요.</p></div>
+      </header>
+      <div id="pane-asm">
+        <div class="panel">
+          <div class="panel__grid">
+            <div class="field">
+              <span class="field__label" id="lbl-src">원본 데이터</span>
+              <div class="drop" id="dropSrc" role="button" tabindex="0" aria-labelledby="lbl-src srcName">
+                <span class="drop__icon" aria-hidden="true"></span>
+                <b>끌어다 놓거나 눌러서 선택</b>
+                <small id="srcName">'공연목록' 시트가 있는 .xlsx</small>
+              </div>
+              <input type="file" id="fileSrc" accept=".xlsx" class="hide">
+            </div>
+            <div class="field">
+              <span class="field__label" id="lbl-upd">업데이트 파일 <em>선택</em></span>
+              <div class="drop" id="dropUpd" role="button" tabindex="0" aria-labelledby="lbl-upd updName">
+                <span class="drop__icon" aria-hidden="true"></span>
+                <b>추가·수정·삭제할 행</b>
+                <small id="updName">'업데이트' 시트가 있는 .xlsx</small>
+              </div>
+              <input type="file" id="fileUpd" accept=".xlsx" class="hide">
+              <a href="#" class="link link--sm" id="dlTpl">빈 업데이트 양식 받기</a>
+            </div>
+          </div>
+          <div class="settings">
+            <label class="field"><span class="field__label">기준일</span><input type="date" id="aRef"><span class="field__hint">이 날짜 이후 공연은 [예정]으로 표시돼요.</span></label>
+            <label class="field"><span class="field__label">자동 순위 연도</span><input type="search" id="aYears" placeholder="2026" inputmode="numeric"><span class="field__hint">여러 해는 쉼표로 구분해요.</span></label>
+            <label class="field"><span class="field__label">상세 수록 팀 수</span><input type="number" id="aTop" value="15" min="1" max="50"><span class="field__hint">이보다 아래 순위는 비고에 요약돼요.</span></label>
+          </div>
+          <div class="panel__foot">
+            <p class="status" id="asmStatus" role="status" aria-live="polite"></p>
+            <button class="btn btn--accent btn--lg" id="asmBtn" disabled>결과 엑셀 만들기</button>
+          </div>
         </div>
 
-        <!-- Navigation Tabs -->
-        <div class="flex border-b border-slate-200 bg-white rounded-xl px-2 pt-2 shadow-sm">
-            <button id="tab1Btn" onclick="switchTab('tab1')" class="px-5 py-3 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2">
-                <i class="fa-regular fa-calendar-days"></i> 일별 근무 계획 & 추천 퇴근
-            </button>
-            <button id="tab2Btn" onclick="switchTab('tab2')" class="px-5 py-3 font-semibold text-sm text-slate-500 hover:text-slate-700 transition flex items-center gap-2">
-                <i class="fa-solid fa-umbrella-beach"></i> 연차 사용 미리 시뮬레이션
-                <span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded font-bold">30분단위</span>
-            </button>
+        <div class="panel panel--result hide" id="asmResult">
+          <div class="result-head">
+            <h3 id="asmTitle">순위 산정 결과</h3>
+            <div class="actions">
+              <button class="btn btn--accent" id="dlOut">결과 엑셀 받기</button>
+              <button class="btn btn--ghost hide" id="dlNewSrc">새 원본 받기</button>
+              <button class="btn btn--ghost" id="dlBasis">산정 근거 받기</button>
+              <button class="btn btn--plain" id="toChk">검증 결과 보기 <span aria-hidden="true">›</span></button>
+            </div>
+          </div>
+          <div class="stats" id="asmStats"></div>
+          <div id="updWrap"></div>
+          <div id="rankWrap"></div>
+          <div id="asmNotes"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 검증 -->
+    <section class="tool" id="sec-chk" data-tab="chk" aria-labelledby="t2">
+      <header class="tool__head">
+        <span class="tool__no">2</span>
+        <div><h2 id="t2" tabindex="-1">검증</h2><p>오류 후보를 보여줄 뿐, 최종 판단은 출처를 확인한 사람이 해요.</p></div>
+      </header>
+      <div id="pane-chk">
+        <div class="panel">
+          <div class="panel__grid">
+            <div class="field">
+              <span class="field__label" id="lbl-main">데이터셋 엑셀</span>
+              <div class="drop" id="dropMain" role="button" tabindex="0" aria-labelledby="lbl-main mainName">
+                <span class="drop__icon" aria-hidden="true"></span>
+                <b>끌어다 놓거나 눌러서 선택</b>
+                <small id="mainName">'해외 공연 현황' 시트가 있는 .xlsx</small>
+              </div>
+              <input type="file" id="fileMain" accept=".xlsx,.xlsm" class="hide">
+            </div>
+            <div class="field">
+              <span class="field__label" id="lbl-venue">공연장 마스터 <em>선택</em></span>
+              <div class="drop" id="dropVenue" role="button" tabindex="0" aria-labelledby="lbl-venue venueName">
+                <span class="drop__icon" aria-hidden="true"></span>
+                <b>공연장 마스터 .xlsx</b>
+                <small id="venueName">location, city, capacity, source 열</small>
+              </div>
+              <input type="file" id="fileVenue" accept=".xlsx,.csv" class="hide">
+            </div>
+          </div>
+          <div class="settings settings--two">
+            <label class="field"><span class="field__label">기준일</span><input type="date" id="refDate"><span class="field__hint">[예정] 표시가 맞는지 이 날짜로 판단해요.</span></label>
+            <label class="field"><span class="field__label">엄격 검사 시작 연도</span><input type="number" id="strictFrom" value="2025" min="2010" max="2100"><span class="field__hint">이 연도부터는 규칙을 모두 적용해요.</span></label>
+          </div>
+          <div class="panel__foot">
+            <p class="status" id="status" role="status" aria-live="polite"></p>
+            <button class="btn btn--accent btn--lg" id="runBtn" disabled>검사 실행</button>
+          </div>
         </div>
 
-        <!-- TAB 1: Daily Work Plan & Recommended Leave -->
-        <div id="tab1" class="space-y-4">
-            
-            <!-- Preset Buttons & Guide -->
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-700 flex items-center gap-1">
-                        <i class="fa-solid fa-sliders text-indigo-500"></i> 남은 날 일괄 목표 채우기:
-                    </span>
-                    <button onclick="applyPreset('8h')" class="bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg border border-slate-200 transition font-medium">매일 8시간 (17:30 퇴근)</button>
-                    <button onclick="applyPreset('fri7h')" class="bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg border border-slate-200 transition font-medium">월-목 8.25h + 금 7h (16:30 퇴근)</button>
-                </div>
-                <div class="flex items-center gap-3 text-slate-500 font-medium">
-                    <span class="text-indigo-600 font-bold"><i class="fa-solid fa-circle-info"></i> 코어타임: 월~목(10~16시) / 금(10~12시)</span>
-                </div>
-            </div>
-
-            <!-- Alerts Container -->
-            <div id="alertsContainer" class="space-y-2"></div>
-
-            <!-- Main Work Table -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold">
-                                <th class="p-3.5 w-32">날짜 / 구분</th>
-                                <th class="p-3.5 w-32">출근 시각</th>
-                                <th class="p-3.5 w-32">퇴근 시각</th>
-                                <th class="p-3.5 w-48">시차 연차 / 외출 / 병가</th>
-                                <th class="p-3.5 w-28">인정 근무시간</th>
-                                <th class="p-3.5 w-24">출처</th>
-                                <th class="p-3.5 w-48">비고 / 구분</th>
-                            </tr>
-                        </thead>
-                        <tbody id="workTableBody" class="divide-y divide-slate-100">
-                            <!-- JS Dynamically Injected -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="panel panel--result hide" id="resultCard">
+          <div class="stats" id="stats"></div>
+          <div class="filters">
+            <label class="field"><span class="field__label">연도 범위</span><span class="range"><input type="number" id="yearFrom" aria-label="시작 연도"><span aria-hidden="true">–</span><input type="number" id="yearTo" aria-label="끝 연도"></span></label>
+            <label class="field field--grow"><span class="field__label">검색</span><input type="search" id="q" placeholder="아티스트나 내용, 예: Kai Tak, BTS"></label>
+            <div class="field"><span class="field__label">내보내기</span><span class="actions"><button class="btn btn--ghost" id="dlXlsx">오류 리포트</button><button class="btn btn--ghost" id="dlVenue">공연장 마스터 초안</button></span></div>
+          </div>
+          <div class="chips" id="sevChips" aria-label="등급 필터"></div>
+          <div class="chips chips--checks" id="checkChips" aria-label="검사 항목 필터"></div>
+          <div class="tablewrap tablewrap--tall"><table>
+            <thead><tr><th>등급</th><th>검사 항목</th><th>시트</th><th class="num">엑셀 행</th><th class="num">no</th><th class="num">연도</th><th>아티스트</th><th>내용</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table></div>
+          <p class="note" id="shown"></p>
         </div>
 
-        <!-- TAB 2: Vacation Simulation -->
-        <div id="tab2" class="hidden space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Vacation Summary -->
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-base mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-umbrella-beach text-amber-500"></i> 연차 생성 & 사용 현황
-                        </h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center text-sm border-b pb-2">
-                                <span class="text-slate-500">누적 생성 연차</span>
-                                <span class="font-bold text-emerald-600" id="totalAccruedVac">1개 (8시간)</span>
-                            </div>
-                            <div class="flex justify-between items-center text-sm border-b pb-2">
-                                <span class="text-slate-500">시뮬레이션 예정 연차</span>
-                                <span class="font-bold text-indigo-600" id="simVacHours">0시간</span>
-                            </div>
-                            <div class="flex justify-between items-center text-base pt-1 font-bold">
-                                <span class="text-slate-800">최종 잔여 연차</span>
-                                <span class="text-amber-600" id="remVacHours">8시간 (1일)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <details class="rules">
+          <summary>검사하는 규칙 21개 보기</summary>
+          <ul class="rules__list">
+            <li>국내 공연 포함</li><li>수용인원보다 많은 관객수 (하루 여러 회는 회당 기준)</li><li>capacity에 여러 날 합계 의심</li>
+            <li>관객수 = 수용인원 × 일수 (복사 의심, 공식 표시 있으면 참고)</li><li>같은 공연장 capacity 불일치</li><li>공연장 마스터와 대조</li>
+            <li>그룹 블록 끊김</li><li>연도별 목록 순위와 블록 순서</li><li>블록 안 날짜순</li>
+            <li>목록 밖(16위 이하) 상세 행</li><li>두 시트 값·변수 불일치</li><li>수식이 다른 행 참조</li>
+            <li>no 연번</li><li>분기(qt)</li><li>날짜와 일수 모순</li>
+            <li>중복 행</li><li>[예정]·[일부 예정] 표시 누락</li><li>끝난 [예정] 공연</li>
+          </ul>
+        </details>
+      </div>
+    </section>
 
-                <!-- Simulation Input Form -->
-                <div class="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h3 class="font-bold text-slate-800 text-base mb-2">30분 단위 시차 연차 추가</h3>
-                    <p class="text-xs text-slate-500 mb-4">원하는 날짜에 30분(0.5시간) 단위로 연차를 분할 등록하여 시뮬레이션 해보세요.</p>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">날짜 선택</label>
-                            <input type="date" id="simDate" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">연차 구분</label>
-                            <select id="simType" onchange="adjustSimHours(this.value)" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                                <option value="시차연차">시차연차 (30분 단위 직접지정)</option>
-                                <option value="목요일 코어타임">목요일 코어타임 (6시간)</option>
-                                <option value="금요일 코어타임">금요일 코어타임 (2시간)</option>
-                                <option value="종일연차">종일연차 (8시간)</option>
-                                <option value="오전반차">오전반차 (4시간)</option>
-                                <option value="오후반차">오후반차 (4시간)</option>
-                                <option value="병가">병가 (최대 2시간)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">사용 시간 (시간)</label>
-                            <input type="number" id="simHours" value="0.5" min="0.5" max="8" step="0.5" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        </div>
-                    </div>
-                    <button onclick="addVacationSim()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-plus"></i> 시뮬레이션 목록에 추가하기
-                    </button>
-                </div>
+    <!-- 3 원본 변환 -->
+    <section class="tool" id="sec-cnv" data-tab="cnv" aria-labelledby="t3">
+      <header class="tool__head">
+        <span class="tool__no">3</span>
+        <div><h2 id="t3" tabindex="-1">원본 변환</h2><p>처음 한 번만 하면 돼요. 이후로는 원본 데이터로 조립해요.</p></div>
+      </header>
+      <div id="pane-cnv">
+        <div class="panel">
+          <div class="panel__grid panel__grid--cnv">
+            <div class="field">
+              <span class="field__label" id="lbl-leg">기존 결과 엑셀</span>
+              <div class="drop" id="dropLeg" role="button" tabindex="0" aria-labelledby="lbl-leg legName">
+                <span class="drop__icon" aria-hidden="true"></span>
+                <b>끌어다 놓거나 눌러서 선택</b>
+                <small id="legName">'해외 공연 현황' 시트가 있는 .xlsx</small>
+              </div>
+              <input type="file" id="fileLeg" accept=".xlsx" class="hide">
             </div>
-
-            <!-- Vacation List Table -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-4 border-b border-slate-200 font-bold text-sm text-slate-800 flex justify-between items-center">
-                    <span>계획된 연차 목록</span>
-                    <button onclick="clearSimVacations()" class="text-xs text-rose-500 hover:underline font-normal">시뮬레이션 전체 삭제</button>
-                </div>
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                            <th class="p-3">날짜</th>
-                            <th class="p-3">구분</th>
-                            <th class="p-3">차감 시간</th>
-                            <th class="p-3">상태</th>
-                            <th class="p-3 text-center">관리</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vacationTableBody" class="divide-y divide-slate-100">
-                        <!-- JS Dynamically Injected -->
-                    </tbody>
-                </table>
-            </div>
+            <ul class="bullets">
+              <li>[예정] 태그는 떼고, attendance의 "(소속사 제공)" 같은 표시는 attendance_label 열로 옮겨요.</li>
+              <li>attendance가 수식(수용인원×일수)이던 행은 attendance_rule 열에 표시해요.</li>
+              <li>공연장마스터는 기존 기입값으로 초안만 만들어요. source(출처)를 적은 공연장만 빈 capacity를 채우는 데 쓰여요.</li>
+              <li>공식누적 시트에 공식 합계를 적고 공연목록의 집계묶음 열에 같은 이름을 적으면 순위에 반영돼요.</li>
+            </ul>
+          </div>
+          <div class="panel__foot">
+            <p class="status" id="cnvStatus" role="status" aria-live="polite"></p>
+            <button class="btn btn--accent btn--lg" id="cnvBtn" disabled>원본 데이터 파일 받기</button>
+          </div>
         </div>
-
-    </main>
-
-    <script>
-        function getTodayString() {
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-
-        let currentMonth = 9;
-        let daysDataMap = {};
-        let simVacations = [];
-        let excelUploaded = false;
-
-        const HOLIDAYS = {
-            9: [24, 25],     // 추석 연휴
-            10: [5, 9],      // 개천절 대체휴일, 한글날
-            11: []           
-        };
-
-        window.addEventListener('DOMContentLoaded', () => {
-            loadFromLocalStorage();
-            if (!daysDataMap[9]) generateMonthData(2026, 9);
-            if (!daysDataMap[10]) generateMonthData(2026, 10);
-            if (!daysDataMap[11]) generateMonthData(2026, 11);
-            
-            renderTable();
-            updateSummary();
-        });
-
-        function changeMonth(monthVal) {
-            currentMonth = parseInt(monthVal);
-            document.getElementById('bgMonthNum').innerText = currentMonth;
-            renderTable();
-            updateSummary();
-        }
-
-        function generateMonthData(year, month) {
-            let list = [];
-            const daysInMonth = new Date(year, month, 0).getDate();
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateObj = new Date(year, month - 1, d);
-                const dayNum = dateObj.getDay();
-                const dayStr = ['일', '월', '화', '수', '목', '금', '토'][dayNum];
-                const fullDateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                
-                let isHoliday = (dayNum === 0 || dayNum === 6);
-                if (HOLIDAYS[month] && HOLIDAYS[month].includes(d)) {
-                    isHoliday = true;
-                }
-
-                let isEndAfter = false;
-                if (month === 11 && d > 23) {
-                    isHoliday = true;
-                    isEndAfter = true;
-                }
-
-                list.push({
-                    date: fullDateStr,
-                    dayLabel: `${d}일 (${dayStr})`,
-                    dayOfWeek: dayStr,
-                    dayNumber: d,
-                    isHoliday: isHoliday,
-                    isEndAfter: isEndAfter,
-                    inTime: '',
-                    outTime: '',
-                    vacationHours: 0,
-                    outHours: 0,
-                    tripHours: 0,
-                    workedHours: '0:00',
-                    source: 'plan',
-                    note: isEndAfter ? '인턴만료 종료' : ''
-                });
-            }
-            daysDataMap[month] = list;
-        }
-
-        function parseTimeToMinutes(t) {
-            if (!t || typeof t !== 'string' || !t.includes(':')) return 0;
-            const [h, m] = t.split(':').map(Number);
-            return (h * 60) + (m || 0);
-        }
-
-        function formatMinutesToHM(mins) {
-            if (isNaN(mins) || mins < 0) mins = 0;
-            const h = Math.floor(mins / 60);
-            const m = mins % 60;
-            return `${h}:${String(m).padStart(2, '0')}`;
-        }
-
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-                    processCompanyExcel(json);
-                    excelUploaded = true;
-                    document.getElementById('fileInfo').classList.remove('hidden');
-                    document.getElementById('fileName').innerText = file.name;
-                    saveToLocalStorage();
-                    renderTable();
-                    updateSummary();
-                } catch (err) {
-                    alert('엑셀 파일을 읽는 도중 오류가 발생했습니다.');
-                    console.error(err);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function processCompanyExcel(rows) {
-            rows.forEach(row => {
-                if (!row || row.length < 10) return;
-                const dateStr = String(row[6] || '').trim();
-                if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    const m = parseInt(dateStr.split('-')[1]);
-                    if (daysDataMap[m]) {
-                        const matchedDay = daysDataMap[m].find(d => d.date === dateStr);
-                        if (matchedDay) {
-                            const inVal = String(row[7] || '').trim();
-                            const outVal = String(row[9] || '').trim();
-                            const calcWorked = String(row[16] || '').trim();
-                            const isHol = String(row[5] || '').trim() !== '평일';
-                            
-                            const tripTime = String(row[22] || '').trim();
-                            const leaveTime = String(row[25] || '').trim();
-                            const reason = String(row[45] || '').trim();
-
-                            matchedDay.inTime = (inVal && inVal.length === 5) ? inVal : '';
-                            matchedDay.outTime = (outVal && outVal.length === 5) ? outVal : '';
-                            matchedDay.isHoliday = isHol || matchedDay.isEndAfter;
-                            matchedDay.source = 'system';
-
-                            let noteList = [];
-
-                            if (tripTime && tripTime !== '\xa0' && tripTime.includes(':')) {
-                                const tMins = parseTimeToMinutes(tripTime);
-                                matchedDay.tripHours = tMins / 60;
-                                noteList.push(`출장 ${tripTime}`);
-                            }
-
-                            if (leaveTime && leaveTime !== '\xa0' && leaveTime.includes(':')) {
-                                const lMins = parseTimeToMinutes(leaveTime);
-                                matchedDay.outHours = lMins / 60;
-                                const rText = reason ? ` (${reason.split(' ')[0]})` : '';
-                                noteList.push(`외출/병가 ${leaveTime}${rText}`);
-                            }
-
-                            matchedDay.note = matchedDay.isEndAfter ? '인턴만료 종료' : noteList.join(', ');
-
-                            if (calcWorked && calcWorked.includes(':')) {
-                                matchedDay.workedHours = calcWorked;
-                            } else if (matchedDay.tripHours > 0) {
-                                matchedDay.workedHours = formatMinutesToHM(matchedDay.tripHours * 60);
-                            } else {
-                                matchedDay.workedHours = '0:00';
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function clearExcelData() {
-            excelUploaded = false;
-            document.getElementById('fileInfo').classList.add('hidden');
-            document.getElementById('fileInput').value = '';
-            generateMonthData(2026, currentMonth);
-            saveToLocalStorage();
-            renderTable();
-            updateSummary();
-        }
-
-        function calcDailyWorkedMinutes(day) {
-            if (day.isHoliday) return 0;
-            if (day.source === 'system' && day.workedHours && day.workedHours !== '0:00') {
-                return parseTimeToMinutes(day.workedHours);
-            }
-            
-            let totalMins = 0;
-
-            if (day.inTime && day.outTime) {
-                const startMins = parseTimeToMinutes(day.inTime);
-                const endMins = parseTimeToMinutes(day.outTime);
-                totalMins = endMins - startMins;
-
-                if (startMins < 720 && endMins > 780) {
-                    totalMins -= 60;
-                }
-            }
-
-            const simForDay = simVacations.filter(v => v.date === day.date);
-            let simVacMins = 0;
-            simForDay.forEach(v => {
-                simVacMins += (v.hours * 60);
-            });
-
-            totalMins += simVacMins;
-            totalMins += (day.vacationHours || 0) * 60;
-            totalMins += (day.tripHours || 0) * 60;
-
-            return Math.max(0, totalMins);
-        }
-
-        function renderTable() {
-            const todayStr = getTodayString();
-            const daysData = daysDataMap[currentMonth] || [];
-            const tbody = document.getElementById('workTableBody');
-            tbody.innerHTML = '';
-            let alerts = [];
-
-            daysData.forEach((day, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = day.isHoliday ? 'bg-slate-50/80 text-slate-400' : 'hover:bg-indigo-50/20 transition';
-
-                const workedMins = calcDailyWorkedMinutes(day);
-                const workedStr = formatMinutesToHM(workedMins);
-
-                let eventBadge = '';
-                if (day.dayNumber === 21) {
-                    eventBadge = '<span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded ml-1">💰 월급날</span>';
-                } else if (day.dayNumber === 24 && currentMonth !== 11) {
-                    eventBadge = '<span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded ml-1">🎉 연차 +1개 생성</span>';
-                } else if (currentMonth === 11 && day.dayNumber === 23) {
-                    eventBadge = '<span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded ml-1">🎓 인턴 만료 종료일</span>';
-                }
-
-                if (!day.isHoliday && day.inTime && day.outTime) {
-                    const inM = parseTimeToMinutes(day.inTime);
-                    const outM = parseTimeToMinutes(day.outTime);
-
-                    if (day.dayOfWeek === '금') {
-                        if (inM > 600 || outM < 720) {
-                            alerts.push(`${day.dayLabel}: 금요일 의무 근무시간(10:00 ~ 12:00) 미충족 경고`);
-                        }
-                    } else {
-                        if (inM > 600 || outM < 960) {
-                            alerts.push(`${day.dayLabel}: 월~목 의무 근무시간(10:00 ~ 16:00) 미충족 경고`);
-                        }
-                    }
-                }
-
-                let specialBadge = '-';
-                const simForDay = simVacations.filter(v => v.date === day.date);
-                if (simForDay.length > 0) {
-                    const simInfo = simForDay.map(v => `시차연차 ${v.hours}h`).join(', ');
-                    specialBadge = `<span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-medium text-[11px]">${simInfo}</span>`;
-                } else if (day.note) {
-                    specialBadge = `<span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-medium text-[11px]">${day.note}</span>`;
-                }
-
-                const isPastOrToday = day.date <= todayStr;
-                let sourceBadge = '<span class="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded text-[10px]">계획</span>';
-                
-                if (day.source === 'system') {
-                    sourceBadge = '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">✓ 시스템</span>';
-                } else if (isPastOrToday && (day.inTime || day.outTime)) {
-                    sourceBadge = '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">✓ 완료</span>';
-                }
-
-                tr.innerHTML = `
-                    <td class="p-3.5 font-semibold">
-                        ${day.dayLabel} 
-                        ${day.isHoliday ? `<span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-1">${day.isEndAfter ? '종료' : '휴일'}</span>` : ''}
-                        ${eventBadge}
-                    </td>
-                    <td class="p-3.5">
-                        <input type="time" value="${day.inTime}" ${day.isHoliday ? 'disabled' : ''} 
-                               onchange="updateRow(${idx}, 'inTime', this.value)"
-                               class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100">
-                    </td>
-                    <td class="p-3.5">
-                        <input type="time" value="${day.outTime}" ${day.isHoliday ? 'disabled' : ''} 
-                               onchange="updateRow(${idx}, 'outTime', this.value)"
-                               class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100">
-                    </td>
-                    <td class="p-3.5">${specialBadge}</td>
-                    <td class="p-3.5 font-bold ${workedMins > 0 ? 'text-indigo-600' : 'text-slate-400'}">
-                        ${workedStr}
-                    </td>
-                    <td class="p-3.5">
-                        ${sourceBadge}
-                    </td>
-                    <td class="p-3.5 text-slate-500">
-                        ${day.isEndAfter 
-                            ? '<span class="text-[11px] text-slate-400">인턴만료</span>'
-                            : `<button onclick="toggleHoliday(${idx})" class="text-[11px] text-indigo-500 hover:underline">
-                                ${day.isHoliday ? '평일전환' : '휴일전환'}
-                               </button>`}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            const alertBox = document.getElementById('alertsContainer');
-            if (alerts.length > 0) {
-                alertBox.innerHTML = `
-                    <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs flex items-center gap-2">
-                        <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-                        <span>${alerts[0]} (총 ${alerts.length}건 규정 체크)</span>
-                    </div>
-                `;
-            } else {
-                alertBox.innerHTML = '';
-            }
-        }
-
-        function updateRow(idx, field, value) {
-            daysDataMap[currentMonth][idx][field] = value;
-            daysDataMap[currentMonth][idx].source = 'manual';
-            saveToLocalStorage();
-            renderTable();
-            updateSummary();
-        }
-
-        function toggleHoliday(idx) {
-            daysDataMap[currentMonth][idx].isHoliday = !daysDataMap[currentMonth][idx].isHoliday;
-            if (daysDataMap[currentMonth][idx].isHoliday) {
-                daysDataMap[currentMonth][idx].inTime = '';
-                daysDataMap[currentMonth][idx].outTime = '';
-            }
-            saveToLocalStorage();
-            renderTable();
-            updateSummary();
-        }
-
-        function updateSummary() {
-            const todayStr = getTodayString();
-            const daysData = daysDataMap[currentMonth] || [];
-            let totalWorkedMins = 0;
-            let pastWorkedDaysCount = 0;
-            let pastWorkedMins = 0;
-            let totalWorkDaysCount = 0;
-            let remWorkDays = 0;
-
-            daysData.forEach(d => {
-                if (!d.isHoliday) {
-                    totalWorkDaysCount++;
-                    const m = calcDailyWorkedMinutes(d);
-                    totalWorkedMins += m;
-
-                    const isPastOrToday = d.date <= todayStr;
-                    const hasActualWorkedTime = m > 0;
-
-                    // ONLY COUNT AS PAST WORKED DAY IF IT ACTUALLY HAS WORKED TIME AND IS PAST/TODAY
-                    if (isPastOrToday && hasActualWorkedTime) {
-                        pastWorkedDaysCount++;
-                        pastWorkedMins += m;
-                    } else if (!isPastOrToday || !hasActualWorkedTime) {
-                        remWorkDays++;
-                    }
-                }
-            });
-
-            const totalTargetMins = totalWorkDaysCount * 8 * 60; 
-            const expectedMinsToDate = pastWorkedDaysCount * 8 * 60; // 8 hours per actual worked past day
-            const currentOvertimeMins = pastWorkedMins - expectedMinsToDate; // EXACT REALTIME OVERTIME
-
-            document.getElementById('totalWorked').innerText = formatMinutesToHM(totalWorkedMins);
-            document.getElementById('targetWork').innerText = formatMinutesToHM(totalTargetMins);
-
-            const overEl = document.getElementById('currentOvertime');
-            if (currentOvertimeMins >= 0) {
-                overEl.innerText = `+${formatMinutesToHM(currentOvertimeMins)} 여유`;
-                overEl.className = 'text-lg font-bold text-emerald-400';
-            } else {
-                overEl.innerText = `-${formatMinutesToHM(Math.abs(currentOvertimeMins))} 부족`;
-                overEl.className = 'text-lg font-bold text-rose-400';
-            }
-
-            const remMinsForMonth = Math.max(0, totalTargetMins - pastWorkedMins);
-            document.getElementById('diffWork').innerText = `${formatMinutesToHM(remMinsForMonth)} 필요`;
-
-            if (remWorkDays > 0) {
-                const recPerDayMins = Math.ceil(remMinsForMonth / remWorkDays);
-                const recLeaveMins = 510 + recPerDayMins;
-                const leaveH = Math.floor(recLeaveMins / 60);
-                const leaveM = recLeaveMins % 60;
-                document.getElementById('recommendTime').innerText = `${String(leaveH).padStart(2, '0')}:${String(leaveM).padStart(2, '0')} (08:30 출근 기준)`;
-            } else {
-                document.getElementById('recommendTime').innerText = '정산 완료';
-            }
-
-            renderVacationTab();
-        }
-
-        function applyPreset(type) {
-            const daysData = daysDataMap[currentMonth] || [];
-            daysData.forEach(d => {
-                if (!d.isHoliday && (d.source !== 'system' || !d.workedHours || d.workedHours === '0:00')) {
-                    if (type === '8h') {
-                        d.inTime = '08:30'; d.outTime = '17:30';
-                    } else if (type === 'fri7h') {
-                        if (d.dayOfWeek === '금') {
-                            d.inTime = '08:30'; d.outTime = '16:30';
-                        } else {
-                            d.inTime = '08:30'; d.outTime = '17:45';
-                        }
-                    }
-                }
-            });
-            saveToLocalStorage();
-            renderTable();
-            updateSummary();
-        }
-
-        function adjustSimHours(typeVal) {
-            const hInput = document.getElementById('simHours');
-            if (typeVal === '목요일 코어타임') hInput.value = 6;
-            else if (typeVal === '금요일 코어타임') hInput.value = 2;
-            else if (typeVal === '종일연차') hInput.value = 8;
-            else if (typeVal === '오전반차' || typeVal === '오후반차') hInput.value = 4;
-            else if (typeVal === '병가') hInput.value = 2;
-            else hInput.value = 0.5;
-        }
-
-        function addVacationSim() {
-            const date = document.getElementById('simDate').value;
-            const type = document.getElementById('simType').value;
-            let hours = parseFloat(document.getElementById('simHours').value) || 0;
-
-            if (!date) {
-                alert('날짜를 선택해 주세요.');
-                return;
-            }
-
-            if (hours % 0.5 !== 0) {
-                alert('연차 및 시간차는 30분(0.5시간) 단위로만 신청이 가능합니다.');
-                return;
-            }
-
-            if (type === '병가' && hours > 2) {
-                alert('병가는 일 최대 2시간까지만 인정됩니다. 2시간으로 설정됩니다.');
-                hours = 2;
-            }
-
-            simVacations.push({ date, type, hours });
-            saveToLocalStorage();
-            renderTable();
-            renderVacationTab();
-            updateSummary();
-        }
-
-        function clearSimVacations() {
-            simVacations = [];
-            saveToLocalStorage();
-            renderTable();
-            renderVacationTab();
-            updateSummary();
-        }
-
-        function renderVacationTab() {
-            const tbody = document.getElementById('vacationTableBody');
-            tbody.innerHTML = '';
-            let simHoursTotal = 0;
-
-            simVacations.forEach((v, i) => {
-                simHoursTotal += v.hours;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-3 font-semibold">${v.date}</td>
-                    <td class="p-3">${v.type}</td>
-                    <td class="p-3 font-bold text-amber-600">${v.hours}시간</td>
-                    <td class="p-3"><span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px]">시뮬레이션</span></td>
-                    <td class="p-3 text-center"><button onclick="deleteSimVac(${i})" class="text-rose-500 hover:underline">삭제</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            let accruedCount = currentMonth - 8; 
-            let accruedHours = accruedCount * 8;
-
-            document.getElementById('totalAccruedVac').innerText = `${accruedCount}개 (${accruedHours}시간)`;
-            document.getElementById('simVacHours').innerText = `${simHoursTotal}시간`;
-            
-            const rem = accruedHours - simHoursTotal;
-            document.getElementById('remVacHours').innerText = `${rem}시간 (${(rem / 8).toFixed(1)}일)`;
-        }
-
-        function deleteSimVac(i) {
-            simVacations.splice(i, 1);
-            saveToLocalStorage();
-            renderTable();
-            renderVacationTab();
-            updateSummary();
-        }
-
-        function switchTab(tab) {
-            if (tab === 'tab1') {
-                document.getElementById('tab1').classList.remove('hidden');
-                document.getElementById('tab2').classList.add('hidden');
-                document.getElementById('tab1Btn').className = 'px-5 py-3 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2';
-                document.getElementById('tab2Btn').className = 'px-5 py-3 font-semibold text-sm text-slate-500 hover:text-slate-700 transition flex items-center gap-2';
-            } else {
-                document.getElementById('tab1').classList.add('hidden');
-                document.getElementById('tab2').classList.remove('hidden');
-                document.getElementById('tab2Btn').className = 'px-5 py-3 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2';
-                document.getElementById('tab1Btn').className = 'px-5 py-3 font-semibold text-sm text-slate-500 hover:text-slate-700 transition flex items-center gap-2';
-            }
-        }
-
-        function saveToLocalStorage() {
-            localStorage.setItem('work_planner_months', JSON.stringify(daysDataMap));
-            localStorage.setItem('work_planner_vacs', JSON.stringify(simVacations));
-        }
-
-        function loadFromLocalStorage() {
-            const savedMonths = localStorage.getItem('work_planner_months');
-            const savedVacs = localStorage.getItem('work_planner_vacs');
-            if (savedMonths) daysDataMap = JSON.parse(savedMonths);
-            if (savedVacs) simVacations = JSON.parse(savedVacs);
-        }
-
-        function resetData() {
-            if (confirm('모든 입력 및 데이터가 초기화됩니다.')) {
-                localStorage.clear();
-                excelUploaded = false;
-                simVacations = [];
-                daysDataMap = {};
-                generateMonthData(2026, 9);
-                generateMonthData(2026, 10);
-                generateMonthData(2026, 11);
-                document.getElementById('fileInfo').classList.add('hidden');
-                renderTable();
-                updateSummary();
-            }
-        }
-
-        function shareLink() {
-            navigator.clipboard.writeText(window.location.href);
-            alert('웹 앱 주소가 클립보드에 복사되었습니다!');
-        }
-    </script>
+      </div>
+    </section>
+
+    <!-- ================= 마무리 ================= -->
+    <section class="closing" aria-labelledby="closing-title">
+      <h2 id="closing-title">공식 수치만,<br>출처와 함께.</h2>
+      <p>attendance는 공식 출처가 있는 값만 넣고, 추정이거나 애매하면 공란으로 둬요.</p>
+      <a class="btn btn--accent btn--lg" href="#sec-asm">결과 엑셀 만들러 가기</a>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>K-pop 해외공연 데이터 도구</span>
+    <span>파일은 이 브라우저 안에서만 처리되고 어디에도 전송되지 않아요.</span>
+  </footer>
+
+  <!-- ================= 따라다니는 바로가기 (기능 소개 구간에서만 표시) ================= -->
+  <nav class="dock" id="dock" aria-label="지금 보는 기능 바로 쓰기" aria-hidden="true">
+    <div class="dock__info">
+      <span class="dock__dots" aria-hidden="true"><i data-k="asm"></i><i data-k="chk"></i><i data-k="cnv"></i></span>
+      <span class="dock__text"><small>지금 보는 기능</small><b id="dockName">조립·순위</b></span>
+    </div>
+    <a class="cta cta--dock" id="dockGo" href="#sec-asm" data-go="asm" tabindex="-1"><span>바로 쓰기</span><span class="cta__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+  </nav>
 </body>
 </html>
